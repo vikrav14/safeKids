@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, Message
+from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, Message, UserDevice # Added UserDevice
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -38,3 +38,17 @@ class MessageAdmin(admin.ModelAdmin):
     search_fields = ('sender__username', 'receiver__username', 'content')
     list_filter = ('is_read', 'timestamp')
     date_hierarchy = 'timestamp'
+
+@admin.register(UserDevice)
+class UserDeviceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'device_type', 'device_token_short', 'created_at', 'is_active')
+    list_filter = ('device_type', 'is_active', 'user') # Added user to list_filter
+    search_fields = ('user__username', 'device_token')
+    readonly_fields = ('created_at',)
+
+    def device_token_short(self, obj):
+        # Ensure token is not None and is a string before slicing
+        if obj.device_token and isinstance(obj.device_token, str):
+            return obj.device_token[:50] + "..." if len(obj.device_token) > 50 else obj.device_token
+        return ""
+    device_token_short.short_description = "Device Token (Short)"

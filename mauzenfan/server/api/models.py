@@ -84,3 +84,25 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+
+class UserDevice(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='devices')
+    device_token = models.TextField(unique=True) # FCM tokens can be long
+    device_type = models.CharField(max_length=10, blank=True, null=True, choices=[('android', 'Android'), ('ios', 'iOS'), ('web', 'Web')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        # Limit token display length for readability
+        token_preview = self.device_token[:20] + "..." if self.device_token and len(self.device_token) > 20 else self.device_token
+        return f"{self.user.username} - {self.device_type or 'UnknownType'} ({token_preview})"
+
+    class Meta:
+        # device_token is globally unique as per unique=True on the field.
+        # If you want to ensure a user doesn't register the *same token twice* for *their own account*,
+        # then unique_together = ('user', 'device_token') would make sense.
+        # However, since device_token is already unique=True, this is somewhat redundant.
+        # Let's keep it simple with unique=True on device_token.
+        # If a user tries to register an existing token (even their own), it will fail due to unique=True,
+        # which is often desired (upsert logic would handle this in the view).
+        ordering = ['-created_at']
