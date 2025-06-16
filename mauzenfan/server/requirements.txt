@@ -9,4 +9,5 @@ pyowm>=3.3
 celery>=5.2
 redis>=4.3
 django-celery-beat>=2.5
+scikit-learn>=1.0
 # flower>=1.0 # Optional: for monitoring Celery tasks

@@ -1,8 +1,13 @@
 from django.contrib import admin
 from .models import (
     UserProfile, Child, LocationPoint, SafeZone,
-    Alert, Message, UserDevice, LearnedRoutine # Added LearnedRoutine
+    Alert, Message, UserDevice, LearnedRoutine
 )
+from .tasks import analyze_trip_task # Import the Celery task
+from django.contrib import messages
+from django.utils import timezone
+from datetime import timedelta
+# import json # Not strictly needed in admin.py for this action
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
@@ -11,9 +16,46 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Child)
 class ChildAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent', 'device_id', 'battery_status', 'updated_at')
+    list_display = ('name', 'parent', 'device_id', 'battery_status', 'is_active', 'updated_at') # Added is_active
     search_fields = ('name', 'parent__username', 'device_id')
-    list_filter = ('parent',)
+    list_filter = ('parent', 'is_active') # Added is_active
+    actions = ['analyze_recent_activity_action']
+
+    @admin.action(description='Analyze recent activity (last 3 hours) for unusual routes')
+    def analyze_recent_activity_action(modeladmin, request, queryset):
+        processed_children = 0
+        for child in queryset:
+            three_hours_ago = timezone.now() - timedelta(hours=3)
+            recent_locations = LocationPoint.objects.filter(
+                child=child,
+                timestamp__gte=three_hours_ago
+            ).order_by('timestamp')
+
+            # Using MIN_TRIP_POINTS from tasks.py, or define a local constant
+            # For simplicity, let's use a local constant or hardcode for the admin action
+            MIN_POINTS_FOR_ANALYSIS = 5
+
+            if recent_locations.count() >= MIN_POINTS_FOR_ANALYSIS:
+                trip_points_data = [
+                    {
+                        'lat': float(lp.latitude),
+                        'lon': float(lp.longitude),
+                        'ts': lp.timestamp.isoformat()
+                    }
+                    for lp in recent_locations
+                ]
+
+                analyze_trip_task.delay(child.id, trip_points_data)
+                processed_children += 1
+            else:
+                modeladmin.message_user(request, f"Not enough recent location data for {child.name} (found {recent_locations.count()} points, need {MIN_POINTS_FOR_ANALYSIS}).", messages.WARNING)
+
+        if processed_children > 0:
+            modeladmin.message_user(request, f"Analysis task queued for {processed_children} children. Check Celery logs for progress.", messages.SUCCESS)
+        elif not queryset.exists(): # Should not happen if action is selected
+            pass
+        else: # No children processed due to insufficient data for all selected
+            modeladmin.message_user(request, "No selected children had sufficient recent data for analysis.", messages.INFO)
 
 @admin.register(LocationPoint)
 class LocationPointAdmin(admin.ModelAdmin):
