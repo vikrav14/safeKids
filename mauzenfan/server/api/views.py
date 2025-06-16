@@ -12,9 +12,11 @@ from .serializers import (
     DeviceRegistrationSerializer # Added DeviceRegistrationSerializer
 )
 from .models import Child, LocationPoint, SafeZone, Alert, UserDevice
-from .fcm_service import send_fcm_to_user # Import FCM service
+from .fcm_service import send_fcm_to_user
+from .geolocation_utils import distance_in_meters # Import distance calculation
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from datetime import timedelta # Import timedelta
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.http import Http404
@@ -105,8 +107,94 @@ class LocationUpdateView(APIView):
                 }
             )
 
+            # --- Safe Zone Breach Detection ---
+            parent_user = child.parent
+            current_location_lat = serializer.validated_data['latitude']
+            current_location_lon = serializer.validated_data['longitude']
+
+            active_safe_zones = SafeZone.objects.filter(owner=parent_user, is_active=True)
+            ALERT_COOLDOWN_MINUTES = 10
+
+            for zone in active_safe_zones:
+                distance_to_zone_center_m = distance_in_meters(
+                    current_location_lat,
+                    current_location_lon,
+                    zone.latitude,
+                    zone.longitude
+                )
+
+                currently_inside_zone = distance_to_zone_center_m <= zone.radius
+
+                # Fetch the last relevant alert for this child and this specific zone
+                last_alert_for_zone = Alert.objects.filter(
+                    recipient=parent_user,
+                    child=child,
+                    safe_zone_id=zone.id # Check against the specific zone
+                ).order_by('-timestamp').first()
+
+                previous_status_was_inside = False
+                alert_on_cooldown = False
+
+                if last_alert_for_zone:
+                    if last_alert_for_zone.alert_type == 'ENTERED_ZONE':
+                        previous_status_was_inside = True
+                    # if alert_type == 'LEFT_ZONE', previous_status_was_inside remains False
+
+                    if (timezone.now() - last_alert_for_zone.timestamp) < timedelta(minutes=ALERT_COOLDOWN_MINUTES):
+                        alert_on_cooldown = True
+
+                new_alert_type = None
+                alert_message = ""
+
+                if currently_inside_zone and not previous_status_was_inside and not alert_on_cooldown:
+                    new_alert_type = 'ENTERED_ZONE'
+                    alert_message = f"{child.name} has entered {zone.name}."
+                elif not currently_inside_zone and previous_status_was_inside and not alert_on_cooldown:
+                    new_alert_type = 'LEFT_ZONE'
+                    alert_message = f"{child.name} has left {zone.name}."
+
+                if new_alert_type:
+                    created_breach_alert = Alert.objects.create(
+                        recipient=parent_user,
+                        child=child,
+                        alert_type=new_alert_type,
+                        message=alert_message,
+                        safe_zone_id=zone.id # Link alert to the specific zone
+                    )
+
+                    push_title = f"Safe Zone Alert: {child.name}"
+                    push_data = {
+                        'alert_type': new_alert_type,
+                        'child_id': str(child.id),
+                        'child_name': child.name,
+                        'zone_id': str(zone.id),
+                        'zone_name': zone.name,
+                        'alert_id': str(created_breach_alert.id)
+                    }
+                    send_fcm_to_user(user=parent_user, title=push_title, body=alert_message, data=push_data)
+
+                    ws_message_payload = {
+                        'type': 'safezone_alert',
+                        'alert_id': created_breach_alert.id,
+                        'child_id': child.id,
+                        'child_name': child.name,
+                        'zone_id': zone.id,
+                        'zone_name': zone.name,
+                        'alert_type': new_alert_type,
+                        'message': alert_message,
+                        'timestamp': created_breach_alert.timestamp.isoformat()
+                    }
+                    async_to_sync(channel_layer.group_send)(
+                        group_name, # Re-use group_name from location update WS
+                        {
+                            "type": "send_notification", # Consumer's generic handler
+                            "message": ws_message_payload
+                        }
+                    )
+            # --- End Safe Zone Breach Detection ---
+
             return Response(
-                {"message": "Location updated successfully."},
+                {"message": "Location updated successfully. Safe zone check performed."}, # Updated message
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
