@@ -9,7 +9,12 @@ from .views import (
     SafeZoneViewSet,
     SOSAlertView,
     AlertListView,
-    DeviceRegistrationView # Added DeviceRegistrationView
+    DeviceRegistrationView,
+    ChildCheckInView,
+    SendMessageView,
+    ConversationListView,
+    MessageHistoryView,
+    MarkMessagesAsReadView
 )
 from rest_framework.authtoken.views import obtain_auth_token
 
@@ -24,6 +29,15 @@ urlpatterns = [
 
     # Device Registration
     path('device/register/', DeviceRegistrationView.as_view(), name='device-register'),
+
+    # Child Check-In
+    path('child/check-in/', ChildCheckInView.as_view(), name='child-check-in'),
+
+    # Messaging
+    path('messages/send/', SendMessageView.as_view(), name='message-send'),
+    path('messages/conversations/', ConversationListView.as_view(), name='message-conversations'),
+    path('messages/conversation/<int:other_user_id>/', MessageHistoryView.as_view(), name='message-history'),
+    path('messages/read/', MarkMessagesAsReadView.as_view(), name='messages-mark-read'),
 
     # Standalone location update
     path('location/update/', LocationUpdateView.as_view(), name='location-update'),
