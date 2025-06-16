@@ -18,7 +18,15 @@ class Child(models.Model):
     device_id = models.CharField(max_length=255, unique=True, blank=True, null=True) # Unique ID for the child's device
     battery_status = models.IntegerField(blank=True, null=True) # Percentage
     last_seen_at = models.DateTimeField(blank=True, null=True)
-    is_active = models.BooleanField(default=True, help_text="Is the child's profile/tracking active?") # Added is_active
+    is_active = models.BooleanField(default=True, help_text="Is the child's profile/tracking active?")
+    proxy_user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='messaging_child_profile',
+        help_text="Proxy User account for this child for messaging purposes."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -126,9 +126,19 @@ class CheckInSerializer(serializers.Serializer):
     client_timestamp_iso = serializers.DateTimeField(required=True)
 
 class MessageUserSerializer(serializers.ModelSerializer):
+    display_name = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'first_name', 'last_name']
+        fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
+
+    def get_display_name(self, obj):
+        # Check if this user is a proxy for a child
+        # The related_name from Child.proxy_user to User is 'messaging_child_profile'
+        if hasattr(obj, 'messaging_child_profile') and obj.messaging_child_profile:
+            return obj.messaging_child_profile.name # Return Child's name
+        full_name = obj.get_full_name()
+        return full_name if full_name else obj.username # Default to User's full name or username
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = MessageUserSerializer(read_only=True)

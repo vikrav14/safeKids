@@ -14,7 +14,8 @@ from .views import (
     SendMessageView,
     ConversationListView,
     MessageHistoryView,
-    MarkMessagesAsReadView
+    MarkMessagesAsReadView,
+    ChildSendMessageView # Added ChildSendMessageView
 )
 from rest_framework.authtoken.views import obtain_auth_token
 
@@ -35,6 +36,7 @@ urlpatterns = [
 
     # Messaging
     path('messages/send/', SendMessageView.as_view(), name='message-send'),
+    path('child/messages/send/', ChildSendMessageView.as_view(), name='child-message-send'), # New path for child sending
     path('messages/conversations/', ConversationListView.as_view(), name='message-conversations'),
     path('messages/conversation/<int:other_user_id>/', MessageHistoryView.as_view(), name='message-history'),
     path('messages/read/', MarkMessagesAsReadView.as_view(), name='messages-mark-read'),
