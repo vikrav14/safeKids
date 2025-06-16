@@ -18,6 +18,7 @@ class Child(models.Model):
     device_id = models.CharField(max_length=255, unique=True, blank=True, null=True) # Unique ID for the child's device
     battery_status = models.IntegerField(blank=True, null=True) # Percentage
     last_seen_at = models.DateTimeField(blank=True, null=True)
+    is_active = models.BooleanField(default=True, help_text="Is the child's profile/tracking active?") # Added is_active
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -57,6 +58,7 @@ class Alert(models.Model):
         ('ENTERED_ZONE', 'Entered Safe Zone'),
         ('LOW_BATTERY', 'Low Battery'),
         ('UNUSUAL_ROUTE', 'Unusual Route Detected'),
+        ('CONTEXTUAL_WEATHER', 'Contextual Weather Alert'), # Added new alert type
         # Add other types as needed
     ]
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alerts')

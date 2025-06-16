@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os # Import os for environment variables
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'api.apps.ApiConfig',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -150,3 +151,18 @@ CHANNEL_LAYERS = {
 # Example: FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', '/path/to/your/fcm-service-account-key.json')
 # For direct path (less secure, ensure file is protected and not in VCS):
 # FCM_SERVICE_ACCOUNT_KEY_PATH = '/path/to/your/fcm-service-account-key.json'
+
+# OpenWeatherMap API Key Configuration
+WEATHER_API_KEY = os.environ.get('OWM_API_KEY', None) # Developer must set OWM_API_KEY environment variable
+# Example: WEATHER_API_KEY = "your_actual_owm_api_key_here_for_testing_only" (NOT FOR PRODUCTION)
+
+# Celery Configuration Options
+# Ensure you have a Redis server running for this configuration.
+# For local development without Redis, you might use a different broker or run tasks synchronously for testing.
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TIMEZONE is already set in celery.py to use settings.TIME_ZONE
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
