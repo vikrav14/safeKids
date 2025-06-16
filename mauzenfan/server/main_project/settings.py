@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'rest_framework',
     'rest_framework.authtoken',
     'api.apps.ApiConfig',
@@ -127,3 +128,25 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+ASGI_APPLICATION = 'main_project.asgi.application'
+
+# CHANNEL_LAYERS configuration
+# For local development, an in-memory channel layer can be used.
+# For production, channels_redis is recommended.
+CHANNEL_LAYERS = {
+    "default": {
+        # "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # "CONFIG": {
+        #     "hosts": [("localhost", 6379)], # Replace with your Redis server details
+        # },
+        "BACKEND": "channels.layers.InMemoryChannelLayer" # In-memory for now
+    },
+}
+
+# FCM Configuration (Optional - for push notifications)
+# Path to your Firebase Admin SDK service account key JSON file.
+# This file should NOT be in version control. Store its path in an environment variable.
+# Example: FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', '/path/to/your/fcm-service-account-key.json')
+# For direct path (less secure, ensure file is protected and not in VCS):
+# FCM_SERVICE_ACCOUNT_KEY_PATH = '/path/to/your/fcm-service-account-key.json'

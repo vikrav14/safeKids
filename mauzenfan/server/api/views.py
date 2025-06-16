@@ -1,18 +1,22 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets, permissions, generics
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated # Ensure IsAuthenticated is imported
 from .serializers import (
     UserRegistrationSerializer,
     ChildSerializer,
     LocationPointSerializer,
     SafeZoneSerializer,
     SOSAlertSerializer,
-    AlertSerializer # Added AlertSerializer
+    AlertSerializer,
+    DeviceRegistrationSerializer # Added DeviceRegistrationSerializer
 )
-from .models import Child, LocationPoint, SafeZone, Alert
+from .models import Child, LocationPoint, SafeZone, Alert, UserDevice
+from .fcm_service import send_fcm_to_user # Import FCM service
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.http import Http404
 from django.utils.dateparse import parse_datetime
 
@@ -28,7 +32,7 @@ class RegistrationView(APIView):
 
 class ChildViewSet(viewsets.ModelViewSet):
     serializer_class = ChildSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return Child.objects.filter(parent=self.request.user).order_by('-created_at')
@@ -37,7 +41,7 @@ class ChildViewSet(viewsets.ModelViewSet):
         serializer.save(parent=self.request.user)
 
 class LocationUpdateView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         child_id_from_req = request.data.get('child_id')
@@ -79,6 +83,28 @@ class LocationUpdateView(APIView):
             child.last_seen_at = timezone.now()
             child.save(update_fields=['battery_status', 'last_seen_at'])
 
+            channel_layer = get_channel_layer()
+            parent_user_id = child.parent.id
+            group_name = f'user_{parent_user_id}_notifications'
+
+            location_data_for_ws = {
+                'child_id': child.id,
+                'child_name': child.name,
+                'latitude': float(serializer.validated_data['latitude']),
+                'longitude': float(serializer.validated_data['longitude']),
+                'timestamp': serializer.validated_data['timestamp'].isoformat(),
+                'accuracy': float(serializer.validated_data.get('accuracy')) if serializer.validated_data.get('accuracy') is not None else None,
+                'battery_status': child.battery_status
+            }
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "location.update",
+                    "payload": location_data_for_ws
+                }
+            )
+
             return Response(
                 {"message": "Location updated successfully."},
                 status=status.HTTP_201_CREATED
@@ -87,7 +113,7 @@ class LocationUpdateView(APIView):
 
 class ChildCurrentLocationView(generics.RetrieveAPIView):
     serializer_class = LocationPointSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self):
         child_id = self.kwargs.get('child_id')
@@ -100,7 +126,7 @@ class ChildCurrentLocationView(generics.RetrieveAPIView):
 
 class ChildLocationHistoryView(generics.ListAPIView):
     serializer_class = LocationPointSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         child_id = self.kwargs.get('child_id')
@@ -135,7 +161,7 @@ class ChildLocationHistoryView(generics.ListAPIView):
 
 class SafeZoneViewSet(viewsets.ModelViewSet):
     serializer_class = SafeZoneSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         return SafeZone.objects.filter(owner=self.request.user).order_by('-created_at')
@@ -144,7 +170,7 @@ class SafeZoneViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
 class SOSAlertView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         serializer = SOSAlertSerializer(data=request.data)
@@ -193,15 +219,57 @@ class SOSAlertView(APIView):
             message=sos_message
         )
 
+        # Send FCM notification to the parent
+        push_title = f"SOS Alert: {child.name}"
+        push_data = {
+            'alert_type': 'SOS',
+            'child_id': str(child.id),
+            'child_name': child.name,
+            # 'alert_id': str(created_alert.id) # If you capture the created_alert instance
+        }
+        if latitude is not None and longitude is not None:
+            push_data['latitude'] = str(latitude)
+            push_data['longitude'] = str(longitude)
+        elif 'last_location' in locals() and last_location: # Check if last_location was defined and found
+            push_data['latitude'] = str(last_location.latitude)
+            push_data['longitude'] = str(last_location.longitude)
+            push_data['location_timestamp'] = last_location.timestamp.isoformat()
+
+        send_fcm_to_user(user=parent_user, title=push_title, body=sos_message, data=push_data)
+
         return Response(
-            {"message": "SOS alert successfully triggered and recorded."},
+            {"message": "SOS alert successfully triggered, recorded, and notification sent."},
             status=status.HTTP_201_CREATED
         )
 
 class AlertListView(generics.ListAPIView):
     serializer_class = AlertSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Users can only see alerts addressed to them, ordered by newest first.
         return Alert.objects.filter(recipient=self.request.user).order_by('-timestamp')
+
+class DeviceRegistrationView(APIView):
+    permission_classes = [IsAuthenticated] # Changed from permissions.IsAuthenticated
+
+    def post(self, request, *args, **kwargs):
+        serializer = DeviceRegistrationSerializer(data=request.data)
+        if serializer.is_valid():
+            device_token = serializer.validated_data['device_token']
+            device_type = serializer.validated_data.get('device_type')
+
+            # Deactivate any other UserDevice entries with the same token but different user
+            UserDevice.objects.filter(device_token=device_token).exclude(user=request.user).update(is_active=False)
+
+            # Create or update the device for the current user
+            user_device, created = UserDevice.objects.update_or_create(
+                user=request.user,
+                device_token=device_token,
+                defaults={'is_active': True, 'device_type': device_type}
+            )
+
+            if created:
+                return Response({"message": "Device registered successfully."}, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"message": "Device registration updated successfully."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

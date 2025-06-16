@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
-from .models import UserProfile, Child, LocationPoint, SafeZone, Alert # Added Alert
+from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice # Added UserDevice
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -92,9 +92,6 @@ class SOSAlertSerializer(serializers.Serializer):
 
 class AlertSerializer(serializers.ModelSerializer):
     alert_type_display = serializers.CharField(source='get_alert_type_display', read_only=True)
-    # For more readable related fields (optional, can be added if needed by frontend)
-    # child_name = serializers.CharField(source='child.name', read_only=True, allow_null=True)
-    # recipient_username = serializers.CharField(source='recipient.username', read_only=True)
 
     class Meta:
         model = Alert
@@ -108,6 +105,15 @@ class AlertSerializer(serializers.ModelSerializer):
             'timestamp',
             'is_read'
         ]
-        # Making all fields read-only as this serializer is for listing/retrieval.
-        # If an update mechanism for 'is_read' is needed, that would be a separate serializer/endpoint.
         read_only_fields = fields
+
+class DeviceRegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserDevice
+        fields = ['device_token', 'device_type']
+        # user field will be set from request.user in the view
+
+    def validate_device_token(self, value):
+        if not value:
+            raise serializers.ValidationError("Device token cannot be empty.")
+        return value

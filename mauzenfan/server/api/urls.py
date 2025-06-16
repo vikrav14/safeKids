@@ -8,7 +8,8 @@ from .views import (
     ChildLocationHistoryView,
     SafeZoneViewSet,
     SOSAlertView,
-    AlertListView # Added AlertListView
+    AlertListView,
+    DeviceRegistrationView # Added DeviceRegistrationView
 )
 from rest_framework.authtoken.views import obtain_auth_token
 
@@ -20,6 +21,9 @@ urlpatterns = [
     # Auth
     path('auth/register/', RegistrationView.as_view(), name='user-register'),
     path('auth/login/', obtain_auth_token, name='user-login'),
+
+    # Device Registration
+    path('device/register/', DeviceRegistrationView.as_view(), name='device-register'),
 
     # Standalone location update
     path('location/update/', LocationUpdateView.as_view(), name='location-update'),
