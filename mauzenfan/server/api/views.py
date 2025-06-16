@@ -193,8 +193,74 @@ class LocationUpdateView(APIView):
                     )
             # --- End Safe Zone Breach Detection ---
 
+            # --- Low Battery Alert Detection ---
+            # battery_status_from_req was already retrieved from request.data
+            # child object is also available
+            # parent_user is child.parent
+
+            LOW_BATTERY_THRESHOLD = 20  # Percent
+            LOW_BATTERY_ALERT_COOLDOWN_MINUTES = 60 # Minutes
+
+            if battery_status_from_req is not None:
+                try:
+                    current_battery_level = int(battery_status_from_req)
+                    if current_battery_level < LOW_BATTERY_THRESHOLD:
+                        last_low_battery_alert = Alert.objects.filter(
+                            recipient=parent_user, # parent_user defined in Safe Zone section
+                            child=child,
+                            alert_type='LOW_BATTERY'
+                        ).order_by('-timestamp').first()
+
+                        send_new_low_battery_alert = True
+                        if last_low_battery_alert:
+                            if (timezone.now() - last_low_battery_alert.timestamp) < timedelta(minutes=LOW_BATTERY_ALERT_COOLDOWN_MINUTES):
+                                send_new_low_battery_alert = False
+
+                        if send_new_low_battery_alert:
+                            alert_message = f"{child.name}'s phone battery is low: {current_battery_level}%."
+
+                            created_low_battery_alert = Alert.objects.create(
+                                recipient=parent_user,
+                                child=child,
+                                alert_type='LOW_BATTERY',
+                                message=alert_message
+                            )
+
+                            push_title = f"Low Battery Warning: {child.name}"
+                            push_data = {
+                                'alert_type': 'LOW_BATTERY',
+                                'child_id': str(child.id),
+                                'child_name': child.name,
+                                'battery_level': str(current_battery_level),
+                                'alert_id': str(created_low_battery_alert.id)
+                            }
+                            send_fcm_to_user(user=parent_user, title=push_title, body=alert_message, data=push_data)
+
+                            # Re-use group_name from WebSocket location update
+                            ws_message_payload = {
+                                'type': 'low_battery_alert',
+                                'alert_id': created_low_battery_alert.id,
+                                'child_id': child.id,
+                                'child_name': child.name,
+                                'battery_level': current_battery_level,
+                                'message': alert_message,
+                                'timestamp': created_low_battery_alert.timestamp.isoformat()
+                            }
+                            async_to_sync(channel_layer.group_send)(
+                                group_name,
+                                {
+                                    "type": "send_notification",
+                                    "message": ws_message_payload
+                                }
+                            )
+                except ValueError:
+                    # Battery status was not a valid integer, log or ignore
+                    # print(f"Warning: Invalid battery_status value received: {battery_status_from_req} for child {child.id}")
+                    pass # Silently pass for now, or add logging
+            # --- End Low Battery Alert Detection ---
+
             return Response(
-                {"message": "Location updated successfully. Safe zone check performed."}, # Updated message
+                {"message": "Location updated successfully. Safe zone and battery checks performed."}, # Updated message
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
