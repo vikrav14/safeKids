@@ -65,7 +65,7 @@ class Alert(models.Model):
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
-    safe_zone = models.ForeignKey(SafeZone, on_delete=models.SET_NULL, blank=True, null=True, related_name='breach_alerts') # Changed related_name
+    safe_zone = models.ForeignKey(SafeZone, on_delete=models.SET_NULL, blank=True, null=True, related_name='breach_alerts')
 
     def __str__(self):
         return f"{self.get_alert_type_display()} for {self.recipient.username}"
@@ -75,7 +75,6 @@ class Alert(models.Model):
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    # For simplicity, receiver is also a User. Could be a group chat ID later.
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -89,22 +88,44 @@ class Message(models.Model):
 
 class UserDevice(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='devices')
-    device_token = models.TextField(unique=True) # FCM tokens can be long
+    device_token = models.TextField(unique=True)
     device_type = models.CharField(max_length=10, blank=True, null=True, choices=[('android', 'Android'), ('ios', 'iOS'), ('web', 'Web')])
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
-        # Limit token display length for readability
         token_preview = self.device_token[:20] + "..." if self.device_token and len(self.device_token) > 20 else self.device_token
         return f"{self.user.username} - {self.device_type or 'UnknownType'} ({token_preview})"
 
     class Meta:
-        # device_token is globally unique as per unique=True on the field.
-        # If you want to ensure a user doesn't register the *same token twice* for *their own account*,
-        # then unique_together = ('user', 'device_token') would make sense.
-        # However, since device_token is already unique=True, this is somewhat redundant.
-        # Let's keep it simple with unique=True on device_token.
-        # If a user tries to register an existing token (even their own), it will fail due to unique=True,
-        # which is often desired (upsert logic would handle this in the view).
         ordering = ['-created_at']
+
+class LearnedRoutine(models.Model):
+    child = models.ForeignKey(Child, on_delete=models.CASCADE, related_name='learned_routines')
+    name = models.CharField(max_length=100, blank=True, help_text="e.g., 'School Run', 'Visit to Park'")
+
+    start_location_name = models.CharField(max_length=150, blank=True, null=True)
+    start_latitude_approx = models.FloatField(blank=True, null=True)
+    start_longitude_approx = models.FloatField(blank=True, null=True)
+
+    end_location_name = models.CharField(max_length=150, blank=True, null=True)
+    end_latitude_approx = models.FloatField(blank=True, null=True)
+    end_longitude_approx = models.FloatField(blank=True, null=True)
+
+    typical_days_of_week = models.CharField(max_length=15, blank=True, null=True, help_text="Comma-separated days (0=Mon, 6=Sun)")
+
+    typical_time_window_start_min = models.TimeField(blank=True, null=True, help_text="Earliest typical start time")
+    typical_time_window_start_max = models.TimeField(blank=True, null=True, help_text="Latest typical start time")
+
+    route_path_approximation_json = models.JSONField(blank=True, null=True, help_text="JSON list of [lat, lon] waypoints")
+
+    last_calculated_at = models.DateTimeField(auto_now_add=True)
+    confidence_score = models.FloatField(default=0.0, help_text="Confidence in this learned routine (0.0 to 1.0)")
+    is_active = models.BooleanField(default=True, help_text="Is this routine currently considered valid?")
+
+    def __str__(self):
+        return f"{self.name} for {self.child.name}" if self.name else f"Routine for {self.child.name}"
+
+    class Meta:
+        ordering = ['child', '-confidence_score', '-last_calculated_at']
+        # unique_together = ('child', 'name') # Consider if routine names should be unique per child
