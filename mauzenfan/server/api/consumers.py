@@ -54,13 +54,23 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     # Receive message from room group (e.g., from Django view via channel_layer.group_send)
     async def send_notification(self, event):
-        message_content = event['message'] # Expect 'message' key in the event dict
+        """
+        Handles generic 'send_notification' events from the channel layer.
+        It expects event['message'] to be a dictionary already structured
+        with its own 'type' field for client-side dispatch.
+        e.g., event['message'] = {'type': 'eta_started', 'data': ...}
+              event['message'] = {'type': 'contextual_weather_alert', ...}
+        """
+        payload_from_view = event['message'] # This is the actual payload the view constructed
 
-        # Send message to WebSocket
-        await self.send(text_data=json.dumps({
-            'type': 'notification', # Client can use this type to identify notification messages
-            'payload': message_content # The actual notification data
-        }))
+        await self.send(text_data=json.dumps(payload_from_view))
+        # Safely access user ID and payload type for logging
+        user_id_for_log = "UnknownUser"
+        if self.scope.get("user") and self.scope["user"].is_authenticated:
+            user_id_for_log = self.scope["user"].id
+        payload_type = payload_from_view.get('type', 'N/A') if isinstance(payload_from_view, dict) else 'N/A'
+        logger.info(f"Relayed generic notification to client for user {user_id_for_log}: type '{payload_type}'")
+
 
     async def location_update(self, event):
         # The event dictionary itself contains the 'payload' key from group_send

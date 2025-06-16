@@ -2,7 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
-from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice, Message # Added Message
+from .models import (
+    UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice, Message,
+    ActiveEtaShare # Added ActiveEtaShare
+)
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
@@ -133,17 +136,15 @@ class MessageUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
 
     def get_display_name(self, obj):
-        # Check if this user is a proxy for a child
-        # The related_name from Child.proxy_user to User is 'messaging_child_profile'
         if hasattr(obj, 'messaging_child_profile') and obj.messaging_child_profile:
-            return obj.messaging_child_profile.name # Return Child's name
+            return obj.messaging_child_profile.name
         full_name = obj.get_full_name()
-        return full_name if full_name else obj.username # Default to User's full name or username
+        return full_name if full_name else obj.username
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = MessageUserSerializer(read_only=True)
     receiver_id = serializers.IntegerField(write_only=True, help_text="ID of the recipient user.")
-    receiver = MessageUserSerializer(read_only=True) # For displaying receiver details on retrieval
+    receiver = MessageUserSerializer(read_only=True)
 
     class Meta:
         model = Message
@@ -153,7 +154,51 @@ class MessageSerializer(serializers.ModelSerializer):
     def validate_receiver_id(self, value):
         if not User.objects.filter(pk=value).exists():
             raise serializers.ValidationError("Recipient user does not exist.")
-        # Accessing self.context['request'] requires request to be passed in context
         if self.context.get('request') and self.context['request'].user.id == value:
             raise serializers.ValidationError("Cannot send messages to yourself.")
         return value
+
+class ActiveEtaShareSerializer(serializers.ModelSerializer):
+    sharer = MessageUserSerializer(read_only=True)
+    shared_with = MessageUserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ActiveEtaShare
+        fields = [
+            'id', 'sharer', 'destination_name',
+            'destination_latitude', 'destination_longitude',
+            'current_latitude', 'current_longitude',
+            'calculated_eta', 'status', 'shared_with',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ('id', 'sharer', 'current_latitude', 'current_longitude',
+                            'calculated_eta', 'status', 'created_at', 'updated_at', 'shared_with')
+
+
+class StartEtaShareSerializer(serializers.Serializer):
+    destination_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    destination_latitude = serializers.FloatField()
+    destination_longitude = serializers.FloatField()
+    current_latitude = serializers.FloatField(help_text="Sharer's current latitude.")
+    current_longitude = serializers.FloatField(help_text="Sharer's current longitude.")
+    shared_with_user_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        allow_empty=True
+    )
+
+    def validate_shared_with_user_ids(self, user_ids):
+        if not user_ids:
+            return []
+
+        sharer_id = self.context['request'].user.id
+        for user_id in user_ids:
+            if user_id == sharer_id:
+                raise serializers.ValidationError("Cannot share ETA with yourself.")
+            if not User.objects.filter(pk=user_id, is_active=True).exists():
+                raise serializers.ValidationError(f"User with ID {user_id} does not exist or is not active.")
+        return user_ids
+
+class UpdateEtaLocationSerializer(serializers.Serializer):
+    current_latitude = serializers.FloatField(required=True)
+    current_longitude = serializers.FloatField(required=True)
