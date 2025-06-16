@@ -2,12 +2,12 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
-from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice # Added UserDevice
+from .models import UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice, Message # Added Message
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True, label="Confirm password")
-    phone_number = serializers.CharField(required=False, allow_blank=True, write_only=True, allow_null=True) # For UserProfile
+    phone_number = serializers.CharField(required=False, allow_blank=True, write_only=True, allow_null=True)
 
     class Meta:
         model = User
@@ -19,9 +19,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
-        if User.objects.filter(email=value.lower()).exists(): # Compare emails in lowercase
+        if User.objects.filter(email=value.lower()).exists():
             raise serializers.ValidationError("An account with this email already exists.")
-        return value.lower() # Store email in lowercase
+        return value.lower()
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
@@ -56,12 +56,10 @@ class ChildSerializer(serializers.ModelSerializer):
     device_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     last_seen_at = serializers.DateTimeField(read_only=True, allow_null=True)
 
-
     class Meta:
         model = Child
         fields = ['id', 'name', 'parent', 'device_id', 'battery_status', 'last_seen_at', 'created_at', 'updated_at']
         read_only_fields = ('created_at', 'updated_at', 'parent', 'last_seen_at')
-
 
     def validate_name(self, value):
         if not value.strip():
@@ -111,9 +109,41 @@ class DeviceRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDevice
         fields = ['device_token', 'device_type']
-        # user field will be set from request.user in the view
 
     def validate_device_token(self, value):
         if not value:
             raise serializers.ValidationError("Device token cannot be empty.")
+        return value
+
+class CheckInSerializer(serializers.Serializer):
+    child_id = serializers.IntegerField(required=True)
+    device_id = serializers.CharField(required=True, max_length=255)
+    check_in_type = serializers.CharField(required=True, max_length=50)
+    custom_message = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=True)
+    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=True)
+    location_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+    client_timestamp_iso = serializers.DateTimeField(required=True)
+
+class MessageUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'first_name', 'last_name']
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = MessageUserSerializer(read_only=True)
+    receiver_id = serializers.IntegerField(write_only=True, help_text="ID of the recipient user.")
+    receiver = MessageUserSerializer(read_only=True) # For displaying receiver details on retrieval
+
+    class Meta:
+        model = Message
+        fields = ['id', 'sender', 'receiver_id', 'receiver', 'content', 'timestamp', 'is_read']
+        read_only_fields = ('id', 'sender', 'timestamp', 'is_read', 'receiver')
+
+    def validate_receiver_id(self, value):
+        if not User.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("Recipient user does not exist.")
+        # Accessing self.context['request'] requires request to be passed in context
+        if self.context.get('request') and self.context['request'].user.id == value:
+            raise serializers.ValidationError("Cannot send messages to yourself.")
         return value

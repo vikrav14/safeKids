@@ -58,7 +58,8 @@ class Alert(models.Model):
         ('ENTERED_ZONE', 'Entered Safe Zone'),
         ('LOW_BATTERY', 'Low Battery'),
         ('UNUSUAL_ROUTE', 'Unusual Route Detected'),
-        ('CONTEXTUAL_WEATHER', 'Contextual Weather Alert'), # Added new alert type
+        ('CONTEXTUAL_WEATHER', 'Contextual Weather Alert'),
+        ('CHECK_IN', 'Child Check-In'), # Added CHECK_IN
         # Add other types as needed
     ]
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alerts')

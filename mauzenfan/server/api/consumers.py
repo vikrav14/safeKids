@@ -66,6 +66,12 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'payload': event['payload']
         }))
 
+    async def new_chat_message(self, event):
+        # event dict contains: {'type': 'new.chat.message', 'payload': ws_message_payload}
+        # ws_message_payload (from SendMessageView) is: {'type': 'new_message', 'data': broadcast_serializer.data}
+        # This sends the ws_message_payload directly to the client.
+        await self.send(text_data=json.dumps(event['payload']))
+
     # Example of a specific type handler if you use different 'type' in group_send
     # async def specific_alert_type(self, event):
     #     data = event['data']
