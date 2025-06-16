@@ -166,3 +166,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 # CELERY_TIMEZONE is already set in celery.py to use settings.TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# App Specific Custom Settings
+DEFAULT_ETA_SPEED_KMH = 30  # Default assumed speed in km/h for ETA calculations

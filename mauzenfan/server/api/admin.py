@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     UserProfile, Child, LocationPoint, SafeZone,
-    Alert, Message, UserDevice, LearnedRoutine
+    Alert, Message, UserDevice, LearnedRoutine, ActiveEtaShare # Added ActiveEtaShare
 )
 from .tasks import analyze_trip_task # Import the Celery task
 from django.contrib import messages
@@ -16,9 +16,9 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Child)
 class ChildAdmin(admin.ModelAdmin):
-    list_display = ('name', 'parent', 'device_id', 'battery_status', 'is_active', 'updated_at') # Added is_active
+    list_display = ('name', 'parent', 'device_id', 'battery_status', 'is_active', 'updated_at')
     search_fields = ('name', 'parent__username', 'device_id')
-    list_filter = ('parent', 'is_active') # Added is_active
+    list_filter = ('parent', 'is_active')
     actions = ['analyze_recent_activity_action']
 
     @admin.action(description='Analyze recent activity (last 3 hours) for unusual routes')
@@ -31,8 +31,6 @@ class ChildAdmin(admin.ModelAdmin):
                 timestamp__gte=three_hours_ago
             ).order_by('timestamp')
 
-            # Using MIN_TRIP_POINTS from tasks.py, or define a local constant
-            # For simplicity, let's use a local constant or hardcode for the admin action
             MIN_POINTS_FOR_ANALYSIS = 5
 
             if recent_locations.count() >= MIN_POINTS_FOR_ANALYSIS:
@@ -52,9 +50,9 @@ class ChildAdmin(admin.ModelAdmin):
 
         if processed_children > 0:
             modeladmin.message_user(request, f"Analysis task queued for {processed_children} children. Check Celery logs for progress.", messages.SUCCESS)
-        elif not queryset.exists(): # Should not happen if action is selected
+        elif not queryset.exists():
             pass
-        else: # No children processed due to insufficient data for all selected
+        else:
             modeladmin.message_user(request, "No selected children had sufficient recent data for analysis.", messages.INFO)
 
 @admin.register(LocationPoint)
@@ -66,15 +64,15 @@ class LocationPointAdmin(admin.ModelAdmin):
 
 @admin.register(SafeZone)
 class SafeZoneAdmin(admin.ModelAdmin):
-    list_display = ('name', 'owner', 'latitude', 'longitude', 'radius', 'is_active') # Added is_active
+    list_display = ('name', 'owner', 'latitude', 'longitude', 'radius', 'is_active')
     search_fields = ('name', 'owner__username')
-    list_filter = ('owner', 'is_active') # Added is_active
+    list_filter = ('owner', 'is_active')
 
 @admin.register(Alert)
 class AlertAdmin(admin.ModelAdmin):
-    list_display = ('recipient', 'child', 'alert_type', 'safe_zone', 'timestamp', 'is_read') # Added safe_zone
-    search_fields = ('recipient__username', 'child__name', 'message', 'safe_zone__name') # Added safe_zone__name
-    list_filter = ('alert_type', 'is_read', 'timestamp', 'child', 'safe_zone') # Added child, safe_zone
+    list_display = ('recipient', 'child', 'alert_type', 'safe_zone', 'timestamp', 'is_read')
+    search_fields = ('recipient__username', 'child__name', 'message', 'safe_zone__name')
+    list_filter = ('alert_type', 'is_read', 'timestamp', 'child', 'safe_zone')
     date_hierarchy = 'timestamp'
 
 @admin.register(Message)
@@ -103,7 +101,6 @@ class LearnedRoutineAdmin(admin.ModelAdmin):
     list_filter = ('child', 'is_active', 'typical_days_of_week', 'confidence_score')
     search_fields = ('name', 'child__name', 'start_location_name', 'end_location_name')
     readonly_fields = ('last_calculated_at',)
-    # Consider using a custom form/widget for route_path_approximation_json if editing is needed
     fieldsets = (
         (None, {
             'fields': ('child', 'name', 'is_active')
@@ -123,5 +120,30 @@ class LearnedRoutineAdmin(admin.ModelAdmin):
         ('Calculation Meta', {
             'classes': ('collapse',),
             'fields': ('last_calculated_at', 'confidence_score'),
+        }),
+    )
+
+@admin.register(ActiveEtaShare)
+class ActiveEtaShareAdmin(admin.ModelAdmin):
+    list_display = ('sharer', 'destination_name', 'status', 'calculated_eta', 'updated_at', 'created_at')
+    list_filter = ('status', 'sharer')
+    search_fields = ('sharer__username', 'destination_name')
+    readonly_fields = ('created_at', 'updated_at', 'current_latitude', 'current_longitude', 'calculated_eta')
+    filter_horizontal = ('shared_with',) # Using filter_horizontal for ManyToManyField
+    fieldsets = (
+        (None, {
+            'fields': ('sharer', 'status')
+        }),
+        ('Destination', {
+            'fields': ('destination_name', 'destination_latitude', 'destination_longitude')
+        }),
+        ('Current Status (Read-Only)', { # Clarified that these are read-only in fieldset context
+            'fields': ('current_latitude', 'current_longitude', 'calculated_eta')
+        }),
+        ('Sharing', {
+            'fields': ('shared_with',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at')
         }),
     )

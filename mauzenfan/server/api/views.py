@@ -12,9 +12,12 @@ from .serializers import (
     DeviceRegistrationSerializer,
     CheckInSerializer,
     MessageSerializer,
-    MessageUserSerializer
+    MessageUserSerializer,
+    StartEtaShareSerializer,
+    ActiveEtaShareSerializer,
+    UpdateEtaLocationSerializer
 )
-from .models import Child, LocationPoint, SafeZone, Alert, UserDevice, Message
+from .models import Child, LocationPoint, SafeZone, Alert, UserDevice, Message, ActiveEtaShare
 from django.contrib.auth.models import User
 from .fcm_service import send_fcm_to_user
 from .geolocation_utils import distance_in_meters
@@ -27,6 +30,7 @@ from django.http import Http404
 from django.utils.dateparse import parse_datetime
 from django.db.models import Q, Max, Subquery, OuterRef, Count
 from rest_framework.pagination import PageNumberPagination
+from django.conf import settings
 
 import logging
 
@@ -120,13 +124,12 @@ class ChildCurrentLocationView(generics.RetrieveAPIView):
 
 class ChildLocationHistoryView(generics.ListAPIView):
     serializer_class = LocationPointSerializer; permission_classes = [IsAuthenticated]
-    pagination_class = PageNumberPagination # Using default PageNumberPagination settings for now
+    pagination_class = PageNumberPagination
     def get_queryset(self):
-        other_user_id = self.kwargs.get('other_user_id', None) # If path is /children/{child_id}/history
-        child_id = self.kwargs.get('child_id', other_user_id) # Adapt if child_id is passed differently
-
+        other_user_id = self.kwargs.get('other_user_id', None)
+        child_id = self.kwargs.get('child_id', other_user_id)
         child = get_object_or_404(Child, pk=child_id, parent=self.request.user)
-        queryset = LocationPoint.objects.filter(child=child).order_by('-timestamp') # Changed to -timestamp for typical history display
+        queryset = LocationPoint.objects.filter(child=child).order_by('-timestamp')
         start_timestamp_str = self.request.query_params.get('start_timestamp'); end_timestamp_str = self.request.query_params.get('end_timestamp')
         if start_timestamp_str:
             try:
@@ -226,192 +229,217 @@ class SendMessageView(APIView):
             ws_message_payload = { 'type': 'new_message', 'data': broadcast_serializer.data }
             async_to_sync(channel_layer.group_send)( recipient_group_name, { "type": "new.chat.message", "payload": ws_message_payload } )
 
-            # FCM Push Notification to receiver
             sender_display_name = request.user.get_full_name() or request.user.username
             message_preview = (message.content[:70] + '...') if len(message.content) > 70 else message.content
             fcm_push_data = {
-                'type': 'new_message',
-                'message_id': str(message.id),
-                'sender_id': str(request.user.id),
-                'sender_name': sender_display_name,
-                'conversation_with_user_id': str(request.user.id), # For client to open correct chat
+                'type': 'new_message', 'message_id': str(message.id), 'sender_id': str(request.user.id),
+                'sender_name': sender_display_name, 'conversation_with_user_id': str(request.user.id),
                 'content_preview': message_preview
             }
-            send_fcm_to_user(
-                user=receiver,
-                title=f"New message from {sender_display_name}",
-                body=message_preview,
-                data=fcm_push_data
-            )
+            send_fcm_to_user( user=receiver, title=f"New message from {sender_display_name}", body=message_preview, data=fcm_push_data )
             logger.info(f"Message from {request.user.username} to {receiver.username} sent, broadcasted via WS, and FCM notification queued.")
             return Response(broadcast_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# --- Message History and Conversation List ---
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 20
-    page_size_query_param = 'page_size'
-    max_page_size = 100
+    page_size = 20; page_size_query_param = 'page_size'; max_page_size = 100
 
 class ConversationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, *args, **kwargs):
         user = request.user
-
-        # Get users the current user has sent messages to
         sent_to_users = User.objects.filter(received_messages__sender=user).distinct()
-        # Get users who have sent messages to the current user
         received_from_users = User.objects.filter(sent_messages__receiver=user).distinct()
-        # Combine and get unique users
         contact_users_qs = (sent_to_users | received_from_users).distinct()
-
         conversations = []
         for contact_user in contact_users_qs:
-            last_message = Message.objects.filter(
-                (Q(sender=user, receiver=contact_user) | Q(sender=contact_user, receiver=user))
-            ).order_by('-timestamp').first()
-
+            last_message = Message.objects.filter( (Q(sender=user, receiver=contact_user) | Q(sender=contact_user, receiver=user)) ).order_by('-timestamp').first()
             if last_message:
                 unread_count = Message.objects.filter(sender=contact_user, receiver=user, is_read=False).count()
-                conversations.append({
-                    'contact_user_id': contact_user.id,
-                    'contact_details': MessageUserSerializer(contact_user).data, # Uses updated serializer
-                    'last_message': MessageSerializer(last_message).data,
-                    'unread_count': unread_count,
-                    'last_message_timestamp': last_message.timestamp
-                })
-
+                conversations.append({ 'contact_user_id': contact_user.id, 'contact_details': MessageUserSerializer(contact_user).data, 'last_message': MessageSerializer(last_message).data, 'unread_count': unread_count, 'last_message_timestamp': last_message.timestamp })
         conversations.sort(key=lambda c: c['last_message_timestamp'], reverse=True)
-
         return Response(conversations, status=status.HTTP_200_OK)
 
 class MessageHistoryView(generics.ListAPIView):
-    serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    pagination_class = StandardResultsSetPagination
-
+    serializer_class = MessageSerializer; permission_classes = [IsAuthenticated]; pagination_class = StandardResultsSetPagination
     def get_queryset(self):
-        other_user_id = self.kwargs.get('other_user_id')
-        user = self.request.user
-
-        if str(other_user_id) == str(user.id): return Message.objects.none() # Compare as strings or int
+        other_user_id = self.kwargs.get('other_user_id'); user = self.request.user
+        if str(other_user_id) == str(user.id): return Message.objects.none()
         try: User.objects.get(pk=other_user_id)
         except User.DoesNotExist: return Message.objects.none()
-
-        queryset = Message.objects.filter(
-            (Q(sender=user, receiver_id=other_user_id) |
-             Q(sender_id=other_user_id, receiver=user))
-        ).select_related('sender', 'receiver').order_by('timestamp') # Added select_related
+        queryset = Message.objects.filter( (Q(sender=user, receiver_id=other_user_id) | Q(sender_id=other_user_id, receiver=user)) ).select_related('sender', 'receiver').order_by('timestamp')
         return queryset
 
 class MarkMessagesAsReadView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def post(self, request, *args, **kwargs):
         other_user_id = request.data.get('other_user_id')
-        if not other_user_id:
-            return Response({"error": "other_user_id is required."}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            other_user = User.objects.get(pk=other_user_id)
-        except User.DoesNotExist:
-            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        messages_updated_count = Message.objects.filter(
-            sender=other_user, receiver=request.user, is_read=False
-        ).update(is_read=True)
-
-        # Notify the other user (sender of the messages that were just read) via WebSocket
+        if not other_user_id: return Response({"error": "other_user_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try: other_user = User.objects.get(pk=other_user_id)
+        except User.DoesNotExist: return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        messages_updated_count = Message.objects.filter( sender=other_user, receiver=request.user, is_read=False ).update(is_read=True)
         if messages_updated_count > 0 and other_user:
-            channel_layer = get_channel_layer()
-            # The group name is for the user whose messages were read (the original sender)
-            sender_notification_group_name = f'user_{other_user.id}_notifications'
-
-            read_receipt_payload = {
-                'type': 'messages_read', # Client will look for this type
-                # Identifies who read the messages (i.e., the current user who called this API)
-                'reader_id': str(request.user.id),
-                # Identifies the conversation where messages were read
-                # (from other_user's perspective, it's their conversation with request.user)
-                'conversation_with_user_id': str(request.user.id),
-                'read_at_timestamp': timezone.now().isoformat()
-            }
-
-            async_to_sync(channel_layer.group_send)(
-                sender_notification_group_name,
-                {
-                    "type": "messages.read.receipt", # This will call messages_read_receipt in consumer
-                    "payload": read_receipt_payload
-                }
-            )
+            channel_layer = get_channel_layer(); sender_notification_group_name = f'user_{other_user.id}_notifications'
+            read_receipt_payload = { 'type': 'messages_read', 'reader_id': str(request.user.id), 'conversation_with_user_id': str(request.user.id), 'read_at_timestamp': timezone.now().isoformat() }
+            async_to_sync(channel_layer.group_send)( sender_notification_group_name, { "type": "messages.read.receipt", "payload": read_receipt_payload } )
             logger.info(f"Sent read receipt to user {other_user.username} for conversation with {request.user.username}")
-
         return Response({"message": f"{messages_updated_count} messages marked as read."}, status=status.HTTP_200_OK)
 
 class ChildSendMessageView(APIView):
-    permission_classes = [permissions.AllowAny] # Device authentication
-
+    permission_classes = [permissions.AllowAny]
     def post(self, request, *args, **kwargs):
-        child_id = request.data.get('child_id')
-        device_id_from_request = request.data.get('device_id')
-        content = request.data.get('content')
-
-        if not all([child_id, device_id_from_request, content]):
-            return Response(
-                {"error": "child_id, device_id, and content are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if not content.strip():
-                return Response({"error": "Message content cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            child = get_object_or_404(Child, pk=child_id, is_active=True)
-        except Http404:
-            return Response({"error": "Child not found or not active."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not child.device_id or child.device_id != device_id_from_request:
-            return Response({"error": "Device ID mismatch or not registered."}, status=status.HTTP_403_FORBIDDEN)
-
-        if not child.proxy_user:
-            logger.error(f"Child {child.id} ({child.name}) does not have a proxy_user for messaging. Cannot send message.")
-            return Response({"error": "Messaging not enabled for this child account."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        parent_user = child.parent
-        sender_proxy_user = child.proxy_user
-
-        message = Message.objects.create(
-            sender=sender_proxy_user,
-            receiver=parent_user,
-            content=content
-        )
-
+        child_id = request.data.get('child_id'); device_id_from_request = request.data.get('device_id'); content = request.data.get('content')
+        if not all([child_id, device_id_from_request, content]): return Response( {"error": "child_id, device_id, and content are required."}, status=status.HTTP_400_BAD_REQUEST )
+        if not content.strip(): return Response({"error": "Message content cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+        try: child = get_object_or_404(Child, pk=child_id, is_active=True)
+        except Http404: return Response({"error": "Child not found or not active."}, status=status.HTTP_404_NOT_FOUND)
+        if not child.device_id or child.device_id != device_id_from_request: return Response({"error": "Device ID mismatch or not registered."}, status=status.HTTP_403_FORBIDDEN)
+        if not child.proxy_user: logger.error(f"Child {child.id} ({child.name}) does not have a proxy_user for messaging. Cannot send message."); return Response({"error": "Messaging not enabled for this child account."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        parent_user = child.parent; sender_proxy_user = child.proxy_user
+        message = Message.objects.create( sender=sender_proxy_user, receiver=parent_user, content=content )
         broadcast_serializer = MessageSerializer(message)
-
-        channel_layer = get_channel_layer()
-        recipient_group_name = f'user_{parent_user.id}_notifications'
+        channel_layer = get_channel_layer(); recipient_group_name = f'user_{parent_user.id}_notifications'
         ws_message_payload = {'type': 'new_message', 'data': broadcast_serializer.data}
-        async_to_sync(channel_layer.group_send)(
-            recipient_group_name,
-            {"type": "new.chat.message", "payload": ws_message_payload}
-        )
-
-
-        # FCM Push Notification to parent
-        sender_display_name = child.name # Child's actual name for notification
-        message_preview = (message.content[:70] + '...') if len(message.content) > 70 else message.content
-        fcm_push_data = {
-            'type': 'new_message',
-            'message_id': str(message.id),
-            'sender_id': str(sender_proxy_user.id), # This is the proxy_user.id
-            'sender_name': sender_display_name, # Child's actual name
-             # For client to open correct chat (with child's proxy_user)
-            'conversation_with_user_id': str(sender_proxy_user.id),
-            'child_sender_actual_id': str(child.id), # Actual child ID for client convenience
-            'content_preview': message_preview
-        }
-        send_fcm_to_user(
-            user=parent_user,
-            title=f"New message from {sender_display_name}",
-            body=message_preview,
-            data=fcm_push_data
-        )
+        async_to_sync(channel_layer.group_send)( recipient_group_name, {"type": "new.chat.message", "payload": ws_message_payload} )
+        sender_display_name = child.name; message_preview = (message.content[:70] + '...') if len(message.content) > 70 else message.content
+        fcm_push_data = { 'type': 'new_message', 'message_id': str(message.id), 'sender_id': str(sender_proxy_user.id), 'sender_name': sender_display_name, 'conversation_with_user_id': str(sender_proxy_user.id), 'child_sender_actual_id': str(child.id), 'content_preview': message_preview }
+        send_fcm_to_user( user=parent_user, title=f"New message from {sender_display_name}", body=message_preview, data=fcm_push_data )
         logger.info(f"Message from Child {child.name} (via proxy {sender_proxy_user.username}) to Parent {parent_user.username} sent, broadcasted via WS, and FCM notification queued.")
         return Response(broadcast_serializer.data, status=status.HTTP_201_CREATED)
+
+class StartEtaShareView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, *args, **kwargs):
+        serializer = StartEtaShareSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid(): return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        validated_data = serializer.validated_data; sharer = request.user
+        calculated_eta_datetime = None
+        try:
+            distance_m = distance_in_meters( validated_data['current_latitude'], validated_data['current_longitude'], validated_data['destination_latitude'], validated_data['destination_longitude'] )
+            speed_kmh = float(getattr(settings, 'DEFAULT_ETA_SPEED_KMH', 30))
+            if speed_kmh <= 0: speed_kmh = 30
+            duration_hours = (distance_m / 1000.0) / speed_kmh; duration_seconds = duration_hours * 3600
+            calculated_eta_datetime = timezone.now() + timedelta(seconds=duration_seconds)
+        except Exception as e: logger.error(f"Error calculating ETA: {e}", exc_info=True)
+        eta_share = ActiveEtaShare.objects.create( sharer=sharer, destination_name=validated_data.get('destination_name'), destination_latitude=validated_data['destination_latitude'], destination_longitude=validated_data['destination_longitude'], current_latitude=validated_data['current_latitude'], current_longitude=validated_data['current_longitude'], calculated_eta=calculated_eta_datetime, status='ACTIVE' )
+        shared_with_users = []
+        if validated_data.get('shared_with_user_ids'):
+            shared_with_users = User.objects.filter(pk__in=validated_data['shared_with_user_ids'])
+            eta_share.shared_with.set(shared_with_users)
+        output_serializer = ActiveEtaShareSerializer(eta_share, context={'request': request}); eta_share_data_for_client = output_serializer.data
+        fcm_title = f"ETA Share Started by {sharer.get_full_name() or sharer.username}"; fcm_body = f"Tracking {sharer.get_full_name() or sharer.username} to {validated_data.get('destination_name', 'destination')}. ETA: {calculated_eta_datetime.strftime('%I:%M %p') if calculated_eta_datetime else 'N/A'}"
+        fcm_push_data = { 'type': 'eta_started', 'share_id': str(eta_share.id), 'sharer_id': str(sharer.id), 'sharer_name': sharer.get_full_name() or sharer.username, 'destination_name': eta_share.destination_name, 'eta': eta_share.calculated_eta.isoformat() if eta_share.calculated_eta else None }
+        ws_payload = { 'type': 'eta_started', 'data': eta_share_data_for_client }; channel_layer = get_channel_layer()
+        for user_to_notify in shared_with_users:
+            send_fcm_to_user(user=user_to_notify, title=fcm_title, body=fcm_body, data=fcm_push_data)
+            recipient_group_name = f'user_{user_to_notify.id}_notifications'
+            async_to_sync(channel_layer.group_send)( recipient_group_name, {"type": "send_notification", "message": ws_payload} )
+        logger.info(f"ETA Share ID {eta_share.id} started by {sharer.username} and notifications sent.")
+        return Response(eta_share_data_for_client, status=status.HTTP_201_CREATED)
+
+class UpdateEtaLocationView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, share_id, *args, **kwargs):
+        try: eta_share = get_object_or_404(ActiveEtaShare, pk=share_id, status='ACTIVE')
+        except Http404: return Response({"error": "Active ETA share not found."}, status=status.HTTP_404_NOT_FOUND)
+        if eta_share.sharer != request.user: return Response( {"error": "You do not have permission to update this ETA share."}, status=status.HTTP_403_FORBIDDEN )
+        serializer = UpdateEtaLocationSerializer(data=request.data)
+        if not serializer.is_valid(): return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        validated_data = serializer.validated_data
+        eta_share.current_latitude = validated_data['current_latitude']; eta_share.current_longitude = validated_data['current_longitude']
+        new_calculated_eta_datetime = None
+        try:
+            distance_m = distance_in_meters( eta_share.current_latitude, eta_share.current_longitude, eta_share.destination_latitude, eta_share.destination_longitude )
+            speed_kmh = float(getattr(settings, 'DEFAULT_ETA_SPEED_KMH', 30))
+            if speed_kmh <= 0: speed_kmh = 30
+            duration_hours = (distance_m / 1000.0) / speed_kmh; duration_seconds = duration_hours * 3600
+            new_calculated_eta_datetime = timezone.now() + timedelta(seconds=duration_seconds); eta_share.calculated_eta = new_calculated_eta_datetime
+        except Exception as e: logger.error(f"Error recalculating ETA for share {share_id}: {e}", exc_info=True)
+        eta_share.save()
+        output_serializer = ActiveEtaShareSerializer(eta_share, context={'request': request}); eta_share_data_for_client = output_serializer.data
+        channel_layer = get_channel_layer(); ws_payload = { 'type': 'eta_updated', 'data': eta_share_data_for_client }
+        for user_to_notify in eta_share.shared_with.all():
+            recipient_group_name = f'user_{user_to_notify.id}_notifications'
+            async_to_sync(channel_layer.group_send)( recipient_group_name, {"type": "send_notification", "message": ws_payload} )
+        sharer_group_name = f'user_{eta_share.sharer.id}_notifications'
+        async_to_sync(channel_layer.group_send)( sharer_group_name, {"type": "send_notification", "message": ws_payload} )
+        logger.info(f"ETA Share ID {eta_share.id} updated by {request.user.username}. New ETA: {eta_share.calculated_eta}")
+        return Response(eta_share_data_for_client, status=status.HTTP_200_OK)
+
+class ListActiveEtaSharesView(generics.ListAPIView):
+    serializer_class = ActiveEtaShareSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    # pagination_class = StandardResultsSetPagination # Add if pagination is desired
+
+    def get_queryset(self):
+        user = self.request.user
+        return ActiveEtaShare.objects.filter(
+            Q(status='ACTIVE'),
+            Q(sharer=user) | Q(shared_with=user)
+        ).distinct().order_by('-updated_at')
+
+class CancelEtaShareView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, share_id, *args, **kwargs):
+        try:
+            eta_share = get_object_or_404(ActiveEtaShare, pk=share_id, status='ACTIVE')
+        except Http404:
+            return Response({"error": "Active ETA share not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if eta_share.sharer != request.user:
+            return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+        eta_share.status = 'CANCELLED'
+        eta_share.save(update_fields=['status', 'updated_at'])
+
+        channel_layer = get_channel_layer()
+        ws_payload = {
+            'type': 'eta_cancelled',
+            'data': ActiveEtaShareSerializer(eta_share, context={'request': request}).data
+        }
+
+        users_to_notify = list(eta_share.shared_with.all()) + [eta_share.sharer]
+        for user_to_notify in users_to_notify:
+            if user_to_notify:
+                group_name = f'user_{user_to_notify.id}_notifications'
+                async_to_sync(channel_layer.group_send)(
+                    group_name,
+                    {"type": "send_notification", "message": ws_payload}
+                )
+
+        logger.info(f"ETA Share ID {eta_share.id} cancelled by {request.user.username}.")
+        return Response({"message": "ETA share cancelled successfully."}, status=status.HTTP_200_OK)
+
+class ArrivedEtaShareView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, share_id, *args, **kwargs):
+        try:
+            eta_share = get_object_or_404(ActiveEtaShare, pk=share_id, status='ACTIVE')
+        except Http404:
+            return Response({"error": "Active ETA share not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if eta_share.sharer != request.user:
+            return Response({"error": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
+
+        eta_share.status = 'ARRIVED'
+        eta_share.save(update_fields=['status', 'updated_at'])
+
+        channel_layer = get_channel_layer()
+        ws_payload = {
+            'type': 'eta_arrived',
+            'data': ActiveEtaShareSerializer(eta_share, context={'request': request}).data
+        }
+
+        users_to_notify = list(eta_share.shared_with.all()) + [eta_share.sharer]
+        for user_to_notify in users_to_notify:
+                if user_to_notify:
+                    group_name = f'user_{user_to_notify.id}_notifications'
+                    async_to_sync(channel_layer.group_send)(
+                        group_name,
+                        {"type": "send_notification", "message": ws_payload}
+                    )
+
+        logger.info(f"ETA Share ID {eta_share.id} marked as arrived by {request.user.username}.")
+        return Response({"message": "ETA share marked as arrived."}, status=status.HTTP_200_OK)

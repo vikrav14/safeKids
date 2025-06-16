@@ -15,7 +15,12 @@ from .views import (
     ConversationListView,
     MessageHistoryView,
     MarkMessagesAsReadView,
-    ChildSendMessageView # Added ChildSendMessageView
+    ChildSendMessageView,
+    StartEtaShareView,
+    UpdateEtaLocationView,
+    ListActiveEtaSharesView, # Added
+    CancelEtaShareView,      # Added
+    ArrivedEtaShareView      # Added
 )
 from rest_framework.authtoken.views import obtain_auth_token
 
@@ -36,10 +41,17 @@ urlpatterns = [
 
     # Messaging
     path('messages/send/', SendMessageView.as_view(), name='message-send'),
-    path('child/messages/send/', ChildSendMessageView.as_view(), name='child-message-send'), # New path for child sending
+    path('child/messages/send/', ChildSendMessageView.as_view(), name='child-message-send'),
     path('messages/conversations/', ConversationListView.as_view(), name='message-conversations'),
     path('messages/conversation/<int:other_user_id>/', MessageHistoryView.as_view(), name='message-history'),
     path('messages/read/', MarkMessagesAsReadView.as_view(), name='messages-mark-read'),
+
+    # ETA Sharing
+    path('eta/start/', StartEtaShareView.as_view(), name='eta-start'),
+    path('eta/<int:share_id>/update/', UpdateEtaLocationView.as_view(), name='eta-update-location'),
+    path('eta/active/', ListActiveEtaSharesView.as_view(), name='eta-active-list'),
+    path('eta/<int:share_id>/cancel/', CancelEtaShareView.as_view(), name='eta-cancel'),
+    path('eta/<int:share_id>/arrived/', ArrivedEtaShareView.as_view(), name='eta-arrived'),
 
     # Standalone location update
     path('location/update/', LocationUpdateView.as_view(), name='location-update'),

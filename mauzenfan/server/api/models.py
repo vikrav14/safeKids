@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User # For linking UserProfile and for other ForeignKeys
+# from django.utils.translation import gettext_lazy as _ # Optional, for choices text
 
 # UserProfile model extends the default Django User model
 class UserProfile(models.Model):
@@ -52,7 +53,7 @@ class SafeZone(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6) # Center
     longitude = models.DecimalField(max_digits=9, decimal_places=6) # Center
     radius = models.FloatField() # In meters
-    is_active = models.BooleanField(default=True) # Added is_active field
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,8 +68,7 @@ class Alert(models.Model):
         ('LOW_BATTERY', 'Low Battery'),
         ('UNUSUAL_ROUTE', 'Unusual Route Detected'),
         ('CONTEXTUAL_WEATHER', 'Contextual Weather Alert'),
-        ('CHECK_IN', 'Child Check-In'), # Added CHECK_IN
-        # Add other types as needed
+        ('CHECK_IN', 'Child Check-In'),
     ]
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='alerts')
     child = models.ForeignKey(Child, on_delete=models.CASCADE, related_name='alerts', blank=True, null=True)
@@ -139,4 +139,47 @@ class LearnedRoutine(models.Model):
 
     class Meta:
         ordering = ['child', '-confidence_score', '-last_calculated_at']
-        # unique_together = ('child', 'name') # Consider if routine names should be unique per child
+
+class ActiveEtaShare(models.Model):
+    STATUS_CHOICES = [
+        ('ACTIVE', 'Active'),
+        ('ARRIVED', 'Arrived'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    sharer = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='eta_shares_started'
+    )
+    destination_name = models.CharField(max_length=255, blank=True, null=True)
+    destination_latitude = models.FloatField()
+    destination_longitude = models.FloatField()
+
+    current_latitude = models.FloatField(blank=True, null=True)
+    current_longitude = models.FloatField(blank=True, null=True)
+
+    calculated_eta = models.DateTimeField(blank=True, null=True)
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='ACTIVE'
+    )
+
+    shared_with = models.ManyToManyField(
+        User,
+        related_name='eta_shares_received',
+        blank=True
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ETA Share by {self.sharer.username} to {self.destination_name or 'Unnamed Destination'}"
+
+    class Meta:
+        ordering = ['-updated_at']
+        verbose_name = "Active ETA Share"
+        verbose_name_plural = "Active ETA Shares"
