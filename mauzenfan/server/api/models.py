@@ -43,6 +43,7 @@ class SafeZone(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6) # Center
     longitude = models.DecimalField(max_digits=9, decimal_places=6) # Center
     radius = models.FloatField() # In meters
+    is_active = models.BooleanField(default=True) # Added is_active field
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -64,6 +65,7 @@ class Alert(models.Model):
     message = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    safe_zone = models.ForeignKey(SafeZone, on_delete=models.SET_NULL, blank=True, null=True, related_name='breach_alerts') # Changed related_name
 
     def __str__(self):
         return f"{self.get_alert_type_display()} for {self.recipient.username}"
