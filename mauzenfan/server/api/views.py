@@ -12,7 +12,7 @@ from .serializers import (
     DeviceRegistrationSerializer,
     CheckInSerializer,
     MessageSerializer,
-    MessageUserSerializer # Ensure MessageUserSerializer is imported
+    MessageUserSerializer
 )
 from .models import Child, LocationPoint, SafeZone, Alert, UserDevice, Message
 from django.contrib.auth.models import User
@@ -25,8 +25,8 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.http import Http404
 from django.utils.dateparse import parse_datetime
-from django.db.models import Q, Max, Subquery, OuterRef, Count # Added Q, Max, Subquery, OuterRef, Count
-from rest_framework.pagination import PageNumberPagination # For pagination
+from django.db.models import Q, Max, Subquery, OuterRef, Count
+from rest_framework.pagination import PageNumberPagination
 
 import logging
 
@@ -120,9 +120,13 @@ class ChildCurrentLocationView(generics.RetrieveAPIView):
 
 class ChildLocationHistoryView(generics.ListAPIView):
     serializer_class = LocationPointSerializer; permission_classes = [IsAuthenticated]
+    pagination_class = PageNumberPagination # Using default PageNumberPagination settings for now
     def get_queryset(self):
-        child_id = self.kwargs.get('child_id'); child = get_object_or_404(Child, pk=child_id, parent=self.request.user)
-        queryset = LocationPoint.objects.filter(child=child).order_by('-timestamp')
+        other_user_id = self.kwargs.get('other_user_id', None) # If path is /children/{child_id}/history
+        child_id = self.kwargs.get('child_id', other_user_id) # Adapt if child_id is passed differently
+
+        child = get_object_or_404(Child, pk=child_id, parent=self.request.user)
+        queryset = LocationPoint.objects.filter(child=child).order_by('-timestamp') # Changed to -timestamp for typical history display
         start_timestamp_str = self.request.query_params.get('start_timestamp'); end_timestamp_str = self.request.query_params.get('end_timestamp')
         if start_timestamp_str:
             try:
@@ -221,7 +225,25 @@ class SendMessageView(APIView):
             channel_layer = get_channel_layer(); recipient_group_name = f'user_{receiver.id}_notifications'
             ws_message_payload = { 'type': 'new_message', 'data': broadcast_serializer.data }
             async_to_sync(channel_layer.group_send)( recipient_group_name, { "type": "new.chat.message", "payload": ws_message_payload } )
-            logger.info(f"Message from {request.user.username} to {receiver.username} sent and broadcasted.")
+
+            # FCM Push Notification to receiver
+            sender_display_name = request.user.get_full_name() or request.user.username
+            message_preview = (message.content[:70] + '...') if len(message.content) > 70 else message.content
+            fcm_push_data = {
+                'type': 'new_message',
+                'message_id': str(message.id),
+                'sender_id': str(request.user.id),
+                'sender_name': sender_display_name,
+                'conversation_with_user_id': str(request.user.id), # For client to open correct chat
+                'content_preview': message_preview
+            }
+            send_fcm_to_user(
+                user=receiver,
+                title=f"New message from {sender_display_name}",
+                body=message_preview,
+                data=fcm_push_data
+            )
+            logger.info(f"Message from {request.user.username} to {receiver.username} sent, broadcasted via WS, and FCM notification queued.")
             return Response(broadcast_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -235,23 +257,13 @@ class ConversationListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, *args, **kwargs):
         user = request.user
-        # Subquery for the last message timestamp with a specific user
-        # This creates a subquery that, for each user 'u' (OuterRef), finds the latest message
-        # timestamp where 'u' is either a sender to current_user or a receiver from current_user.
-        # Note: 'user_id' in OuterRef might need to be the actual field name on User model if different, but 'pk' or 'id' is common.
-        # Here, we are iterating over distinct users 'contact_user'. So OuterRef should refer to 'contact_user.pk'.
 
-        # Get all users the current user has interacted with
+        # Get users the current user has sent messages to
         sent_to_users = User.objects.filter(received_messages__sender=user).distinct()
+        # Get users who have sent messages to the current user
         received_from_users = User.objects.filter(sent_messages__receiver=user).distinct()
+        # Combine and get unique users
         contact_users_qs = (sent_to_users | received_from_users).distinct()
-
-        # Annotate each contact user with the timestamp of the last message exchanged with the current user.
-        # This requires a more careful subquery or Python-side processing.
-        # The previous subquery was not quite right for this specific annotation on User model.
-
-        # Let's do it in Python for simplicity, though it's less efficient for many conversations.
-        # For production, this query should be optimized or denormalized.
 
         conversations = []
         for contact_user in contact_users_qs:
@@ -259,17 +271,16 @@ class ConversationListView(APIView):
                 (Q(sender=user, receiver=contact_user) | Q(sender=contact_user, receiver=user))
             ).order_by('-timestamp').first()
 
-            if last_message: # Only include if there's at least one message
+            if last_message:
                 unread_count = Message.objects.filter(sender=contact_user, receiver=user, is_read=False).count()
                 conversations.append({
-                    'contact_user_id': contact_user.id, # For client to fetch history
-                    'contact_details': MessageUserSerializer(contact_user).data,
+                    'contact_user_id': contact_user.id,
+                    'contact_details': MessageUserSerializer(contact_user).data, # Uses updated serializer
                     'last_message': MessageSerializer(last_message).data,
                     'unread_count': unread_count,
-                    'last_message_timestamp': last_message.timestamp # For sorting
+                    'last_message_timestamp': last_message.timestamp
                 })
 
-        # Sort conversations by the timestamp of the last message
         conversations.sort(key=lambda c: c['last_message_timestamp'], reverse=True)
 
         return Response(conversations, status=status.HTTP_200_OK)
@@ -283,14 +294,14 @@ class MessageHistoryView(generics.ListAPIView):
         other_user_id = self.kwargs.get('other_user_id')
         user = self.request.user
 
-        if other_user_id == user.id: return Message.objects.none()
+        if str(other_user_id) == str(user.id): return Message.objects.none() # Compare as strings or int
         try: User.objects.get(pk=other_user_id)
         except User.DoesNotExist: return Message.objects.none()
 
         queryset = Message.objects.filter(
             (Q(sender=user, receiver_id=other_user_id) |
              Q(sender_id=other_user_id, receiver=user))
-        ).order_by('timestamp') # Chronological
+        ).select_related('sender', 'receiver').order_by('timestamp') # Added select_related
         return queryset
 
 class MarkMessagesAsReadView(APIView):
@@ -308,19 +319,99 @@ class MarkMessagesAsReadView(APIView):
             sender=other_user, receiver=request.user, is_read=False
         ).update(is_read=True)
 
-        # Optional: Notify the other user that their messages were read
-        # channel_layer = get_channel_layer()
-        # reader_group_name = f'user_{other_user.id}_notifications' # Notify the sender of the messages
-        # ws_payload = {
-        #     'type': 'messages_read', # Client-side type
-        #     'data': {
-        #         'reader_id': request.user.id, # Who read the messages
-        #         'chat_partner_id': other_user.id # Identifies the chat where messages were read
-        #     }
-        # }
-        # async_to_sync(channel_layer.group_send)(
-        #     reader_group_name,
-        #     { "type": "new.chat.message", "payload": ws_payload } # Can re-use new.chat.message or make a specific consumer handler
-        # )
+        # Notify the other user (sender of the messages that were just read) via WebSocket
+        if messages_updated_count > 0 and other_user:
+            channel_layer = get_channel_layer()
+            # The group name is for the user whose messages were read (the original sender)
+            sender_notification_group_name = f'user_{other_user.id}_notifications'
+
+            read_receipt_payload = {
+                'type': 'messages_read', # Client will look for this type
+                # Identifies who read the messages (i.e., the current user who called this API)
+                'reader_id': str(request.user.id),
+                # Identifies the conversation where messages were read
+                # (from other_user's perspective, it's their conversation with request.user)
+                'conversation_with_user_id': str(request.user.id),
+                'read_at_timestamp': timezone.now().isoformat()
+            }
+
+            async_to_sync(channel_layer.group_send)(
+                sender_notification_group_name,
+                {
+                    "type": "messages.read.receipt", # This will call messages_read_receipt in consumer
+                    "payload": read_receipt_payload
+                }
+            )
+            logger.info(f"Sent read receipt to user {other_user.username} for conversation with {request.user.username}")
 
         return Response({"message": f"{messages_updated_count} messages marked as read."}, status=status.HTTP_200_OK)
+
+class ChildSendMessageView(APIView):
+    permission_classes = [permissions.AllowAny] # Device authentication
+
+    def post(self, request, *args, **kwargs):
+        child_id = request.data.get('child_id')
+        device_id_from_request = request.data.get('device_id')
+        content = request.data.get('content')
+
+        if not all([child_id, device_id_from_request, content]):
+            return Response(
+                {"error": "child_id, device_id, and content are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        if not content.strip():
+                return Response({"error": "Message content cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            child = get_object_or_404(Child, pk=child_id, is_active=True)
+        except Http404:
+            return Response({"error": "Child not found or not active."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not child.device_id or child.device_id != device_id_from_request:
+            return Response({"error": "Device ID mismatch or not registered."}, status=status.HTTP_403_FORBIDDEN)
+
+        if not child.proxy_user:
+            logger.error(f"Child {child.id} ({child.name}) does not have a proxy_user for messaging. Cannot send message.")
+            return Response({"error": "Messaging not enabled for this child account."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        parent_user = child.parent
+        sender_proxy_user = child.proxy_user
+
+        message = Message.objects.create(
+            sender=sender_proxy_user,
+            receiver=parent_user,
+            content=content
+        )
+
+        broadcast_serializer = MessageSerializer(message)
+
+        channel_layer = get_channel_layer()
+        recipient_group_name = f'user_{parent_user.id}_notifications'
+        ws_message_payload = {'type': 'new_message', 'data': broadcast_serializer.data}
+        async_to_sync(channel_layer.group_send)(
+            recipient_group_name,
+            {"type": "new.chat.message", "payload": ws_message_payload}
+        )
+
+
+        # FCM Push Notification to parent
+        sender_display_name = child.name # Child's actual name for notification
+        message_preview = (message.content[:70] + '...') if len(message.content) > 70 else message.content
+        fcm_push_data = {
+            'type': 'new_message',
+            'message_id': str(message.id),
+            'sender_id': str(sender_proxy_user.id), # This is the proxy_user.id
+            'sender_name': sender_display_name, # Child's actual name
+             # For client to open correct chat (with child's proxy_user)
+            'conversation_with_user_id': str(sender_proxy_user.id),
+            'child_sender_actual_id': str(child.id), # Actual child ID for client convenience
+            'content_preview': message_preview
+        }
+        send_fcm_to_user(
+            user=parent_user,
+            title=f"New message from {sender_display_name}",
+            body=message_preview,
+            data=fcm_push_data
+        )
+        logger.info(f"Message from Child {child.name} (via proxy {sender_proxy_user.username}) to Parent {parent_user.username} sent, broadcasted via WS, and FCM notification queued.")
+        return Response(broadcast_serializer.data, status=status.HTTP_201_CREATED)

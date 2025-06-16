@@ -1,5 +1,8 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+import logging # Added logging
+
+logger = logging.getLogger(__name__)
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -71,6 +74,21 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         # ws_message_payload (from SendMessageView) is: {'type': 'new_message', 'data': broadcast_serializer.data}
         # This sends the ws_message_payload directly to the client.
         await self.send(text_data=json.dumps(event['payload']))
+
+    async def messages_read_receipt(self, event):
+        """
+        Handles the 'messages.read.receipt' event from the channel layer
+        and sends a 'messages_read' WebSocket message to the client.
+        """
+        payload_to_send_to_client = event['payload']
+
+        await self.send(text_data=json.dumps(payload_to_send_to_client))
+        # Safely access user ID for logging
+        user_id_for_log = "UnknownUser"
+        if self.scope.get("user") and self.scope["user"].is_authenticated:
+            user_id_for_log = self.scope["user"].id
+        logger.info(f"Relayed messages_read_receipt to client for user {user_id_for_log}: {payload_to_send_to_client}")
+
 
     # Example of a specific type handler if you use different 'type' in group_send
     # async def specific_alert_type(self, event):
