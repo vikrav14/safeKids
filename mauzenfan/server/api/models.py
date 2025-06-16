@@ -17,6 +17,7 @@ class Child(models.Model):
     name = models.CharField(max_length=100)
     device_id = models.CharField(max_length=255, unique=True, blank=True, null=True) # Unique ID for the child's device
     battery_status = models.IntegerField(blank=True, null=True) # Percentage
+    last_seen_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
