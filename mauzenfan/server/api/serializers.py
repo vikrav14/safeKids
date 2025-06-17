@@ -2,9 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
+from django.core.validators import MinValueValidator, MaxValueValidator # Import validators
 from .models import (
     UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice, Message,
-    ActiveEtaShare # Added ActiveEtaShare
+    ActiveEtaShare
 )
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -58,6 +59,10 @@ class ChildSerializer(serializers.ModelSerializer):
     parent = serializers.PrimaryKeyRelatedField(read_only=True)
     device_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     last_seen_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    battery_status = serializers.IntegerField(
+        required=False, allow_null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
 
     class Meta:
         model = Child
@@ -70,26 +75,50 @@ class ChildSerializer(serializers.ModelSerializer):
         return value
 
 class LocationPointSerializer(serializers.ModelSerializer):
+    latitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
+    accuracy = serializers.FloatField(
+        required=False, allow_null=True,
+        validators=[MinValueValidator(0.0)]
+    )
     class Meta:
         model = LocationPoint
         fields = ['latitude', 'longitude', 'timestamp', 'accuracy']
-        extra_kwargs = {
-            'accuracy': {'required': False, 'allow_null': True}
-        }
+        # extra_kwargs for 'accuracy' already handled by field definition above
 
 class SafeZoneSerializer(serializers.ModelSerializer):
     owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    # Keeping FloatField as per subtask decision, but adding validators
+    latitude = serializers.FloatField(
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    longitude = serializers.FloatField(
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
+    radius = serializers.FloatField(validators=[MinValueValidator(1.0)])
 
     class Meta:
         model = SafeZone
-        fields = ['id', 'name', 'owner', 'latitude', 'longitude', 'radius', 'created_at', 'updated_at']
+        fields = ['id', 'name', 'owner', 'latitude', 'longitude', 'radius', 'created_at', 'updated_at', 'is_active'] # Added is_active
         read_only_fields = ('created_at', 'updated_at', 'owner')
 
-class SOSAlertSerializer(serializers.Serializer):
+class SOSAlertSerializer(serializers.Serializer): # Assuming lat/lon are optional as per original
     child_id = serializers.IntegerField(required=True)
     device_id = serializers.CharField(required=True, max_length=255)
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=False)
+    latitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=False,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=False,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
 
 class AlertSerializer(serializers.ModelSerializer):
     alert_type_display = serializers.CharField(source='get_alert_type_display', read_only=True)
@@ -97,16 +126,10 @@ class AlertSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alert
         fields = [
-            'id',
-            'recipient',
-            'child',
-            'alert_type',
-            'alert_type_display',
-            'message',
-            'timestamp',
-            'is_read'
+            'id', 'recipient', 'child', 'alert_type', 'alert_type_display',
+            'message', 'timestamp', 'is_read', 'safe_zone' # Added safe_zone
         ]
-        read_only_fields = fields
+        read_only_fields = fields # All fields read-only for listing
 
 class DeviceRegistrationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -123,8 +146,14 @@ class CheckInSerializer(serializers.Serializer):
     device_id = serializers.CharField(required=True, max_length=255)
     check_in_type = serializers.CharField(required=True, max_length=50)
     custom_message = serializers.CharField(required=False, allow_blank=True, max_length=150)
-    latitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=True)
-    longitude = serializers.DecimalField(max_digits=9, decimal_places=6, required=True)
+    latitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=True,
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9, decimal_places=6, required=True,
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
     location_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
     client_timestamp_iso = serializers.DateTimeField(required=True)
 
@@ -161,6 +190,12 @@ class MessageSerializer(serializers.ModelSerializer):
 class ActiveEtaShareSerializer(serializers.ModelSerializer):
     sharer = MessageUserSerializer(read_only=True)
     shared_with = MessageUserSerializer(many=True, read_only=True)
+    # Assuming model fields are FloatField, applying validators here
+    destination_latitude = serializers.FloatField(validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
+    destination_longitude = serializers.FloatField(validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
+    current_latitude = serializers.FloatField(required=False, allow_null=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
+    current_longitude = serializers.FloatField(required=False, allow_null=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
+
 
     class Meta:
         model = ActiveEtaShare
@@ -171,16 +206,25 @@ class ActiveEtaShareSerializer(serializers.ModelSerializer):
             'calculated_eta', 'status', 'shared_with',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ('id', 'sharer', 'current_latitude', 'current_longitude',
-                            'calculated_eta', 'status', 'created_at', 'updated_at', 'shared_with')
+        # Fields handled by direct serializer field definitions above don't need to be in read_only_fields
+        # if they are not part of model's writable fields by default or are specified as read_only=True on the field.
+        # However, for clarity on which fields are truly input vs output:
+        read_only_fields = ('id', 'sharer', 'calculated_eta', 'status',
+                            'created_at', 'updated_at', 'shared_with')
 
 
 class StartEtaShareSerializer(serializers.Serializer):
     destination_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    destination_latitude = serializers.FloatField()
-    destination_longitude = serializers.FloatField()
-    current_latitude = serializers.FloatField(help_text="Sharer's current latitude.")
-    current_longitude = serializers.FloatField(help_text="Sharer's current longitude.")
+    destination_latitude = serializers.FloatField(validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)])
+    destination_longitude = serializers.FloatField(validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)])
+    current_latitude = serializers.FloatField(
+        help_text="Sharer's current latitude.",
+        validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    current_longitude = serializers.FloatField(
+        help_text="Sharer's current longitude.",
+        validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
     shared_with_user_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -200,5 +244,9 @@ class StartEtaShareSerializer(serializers.Serializer):
         return user_ids
 
 class UpdateEtaLocationSerializer(serializers.Serializer):
-    current_latitude = serializers.FloatField(required=True)
-    current_longitude = serializers.FloatField(required=True)
+    current_latitude = serializers.FloatField(
+        required=True, validators=[MinValueValidator(-90.0), MaxValueValidator(90.0)]
+    )
+    current_longitude = serializers.FloatField(
+        required=True, validators=[MinValueValidator(-180.0), MaxValueValidator(180.0)]
+    )
