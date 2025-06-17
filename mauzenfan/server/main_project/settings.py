@@ -20,12 +20,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$w-i1pgmtf+9*)7=lul@6nv4#y6dl!^ajs+#f&0^9ck4z#&1ct'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-$w-i1pgmtf+9*)7=lul@6nv4#y6dl!^ajs+#f&0^9ck4z#&1ct') # Default only for dev
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Defaults to True for dev
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1').split()
+CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000 http://127.0.0.1:8000').split()
 
 
 # Application definition
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'api.apps.ApiConfig',
     'django_celery_beat',
+    'drf_spectacular', # Added drf-spectacular
 ]
 
 MIDDLEWARE = [
@@ -80,11 +82,11 @@ WSGI_APPLICATION = 'main_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mauzenfan_db',  # Or 'YOUR_DB_NAME'
-        'USER': 'mauzenfan_user', # Or 'YOUR_DB_USER'
-        'PASSWORD': 'DB_PASSWORD', # Or 'YOUR_DB_PASSWORD'
-        'HOST': 'localhost',     # Or 'YOUR_DB_HOST'
-        'PORT': '5432',          # Or 'YOUR_DB_PORT'
+        'NAME': os.environ.get('DB_NAME', 'mauzenfan_db'),
+        'USER': os.environ.get('DB_USER', 'mauzenfan_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'DB_PASSWORD_placeholder'), # Ensure this is changed for prod
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
@@ -124,6 +126,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles' # For collectstatic
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'mediafiles'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -135,22 +141,32 @@ ASGI_APPLICATION = 'main_project.asgi.application'
 # CHANNEL_LAYERS configuration
 # For local development, an in-memory channel layer can be used.
 # For production, channels_redis is recommended.
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+
 CHANNEL_LAYERS = {
     "default": {
-        # "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(REDIS_HOST, REDIS_PORT)],
+        },
+        # Use InMemoryChannelLayer if REDIS_HOST is not set for simpler local dev without Redis
+        # "BACKEND": "channels.layers.InMemoryChannelLayer" if not os.environ.get('REDIS_HOST') else "channels_redis.core.RedisChannelLayer",
         # "CONFIG": {
-        #     "hosts": [("localhost", 6379)], # Replace with your Redis server details
-        # },
-        "BACKEND": "channels.layers.InMemoryChannelLayer" # In-memory for now
+        #     "hosts": [(os.environ.get('REDIS_HOST', 'localhost'), int(os.environ.get('REDIS_PORT', 6379)))],
+        # } if os.environ.get('REDIS_HOST') else {},
     },
 }
+# Fallback to InMemoryChannelLayer if REDIS_HOST is not explicitly set.
+# This simplifies local development setup if Redis isn't running.
+if not os.environ.get('REDIS_HOST'):
+    CHANNEL_LAYERS['default'] = {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
+
 
 # FCM Configuration (Optional - for push notifications)
 # Path to your Firebase Admin SDK service account key JSON file.
-# This file should NOT be in version control. Store its path in an environment variable.
-# Example: FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', '/path/to/your/fcm-service-account-key.json')
-# For direct path (less secure, ensure file is protected and not in VCS):
-# FCM_SERVICE_ACCOUNT_KEY_PATH = '/path/to/your/fcm-service-account-key.json'
+FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', None)
+
 
 # OpenWeatherMap API Key Configuration
 WEATHER_API_KEY = os.environ.get('OWM_API_KEY', None) # Developer must set OWM_API_KEY environment variable
@@ -169,3 +185,27 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # App Specific Custom Settings
 DEFAULT_ETA_SPEED_KMH = 30  # Default assumed speed in km/h for ETA calculations
+
+# Django REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.TokenAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication', # Optional for browsable API
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated', # Default to authenticated
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', # For drf-spectacular
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
+}
+
+# drf-spectacular Settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'MauZenfan API',
+    'DESCRIPTION': 'API for the MauZenfan Family Safety Application. Provides endpoints for managing users, children, locations, alerts, messaging, and ETA sharing.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    # 'COMPONENT_SPLIT_REQUEST': True,
+    # 'COMPONENT_NO_READ_ONLY_REQUIRED': True,
+}
