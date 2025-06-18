@@ -2,7 +2,9 @@
 # exit on error
 set -o errexit
 
-# These commands will run from the 'Root Directory' you set in Render (mauzenfan/server)
+# Install dependencies using the default pip
 pip install -r requirements.txt
-python manage.py collectstatic --noinput
-python manage.py migrate
+
+# Now, use the EXPLICIT path to the python in the virtualenv for all manage.py commands
+/opt/render/project/src/.venv/bin/python manage.py collectstatic --noinput
+/opt/render/project/src/.venv/bin/python manage.py migrate
