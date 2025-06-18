@@ -7,3 +7,7 @@ djangorestframework==3.15.1
 # ASGI & Channels for asynchronous features
 daphne==4.1.2
 channels==4.0.0
+
+# Celery and Redis for background tasks
+celery==5.4.0
+redis==5.0.7
