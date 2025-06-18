@@ -79,15 +79,12 @@ WSGI_APPLICATION = 'main_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import dj_database_url
+
+# ... keep other settings ...
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'mauzenfan_db'),
-        'USER': os.environ.get('DB_USER', 'mauzenfan_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'DB_PASSWORD_placeholder'), # Ensure this is changed for prod
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-    }
+    'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
 }
 
 
