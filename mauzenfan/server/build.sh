@@ -2,13 +2,16 @@
 # exit on error
 set -o errexit
 
-# Navigate to project root where pyproject.toml should be
-cd /opt/render/project/src
+# Create virtual environment
+python -m venv /opt/render/project/src/.venv
 
-# Install dependencies using Poetry
-poetry install --no-interaction --no-ansi
+# Use virtual environment's pip
+/opt/render/project/src/.venv/bin/pip install --upgrade pip
 
-# Move to your Django project directory
+# Install dependencies from requirements.txt
+/opt/render/project/src/.venv/bin/pip install -r requirements.txt
+
+# Move to Django project directory
 cd mauzenfan/server
 
 # Run management commands
