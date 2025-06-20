@@ -18,17 +18,28 @@ from .views import (
     ChildSendMessageView,
     StartEtaShareView,
     UpdateEtaLocationView,
-    ListActiveEtaSharesView, # Added
-    CancelEtaShareView,      # Added
-    ArrivedEtaShareView      # Added
+    ListActiveEtaSharesView,
+    CancelEtaShareView,
+    ArrivedEtaShareView,
+    health_check  # Add this import
 )
 from rest_framework.authtoken.views import obtain_auth_token
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView  # Add for documentation
 
 router = DefaultRouter()
 router.register(r'children', ChildViewSet, basename='child')
 router.register(r'safezones', SafeZoneViewSet, basename='safezone')
 
 urlpatterns = [
+    # ====== Added Endpoints ======
+    # Health Check
+    path('health/', health_check, name='health-check'),
+    
+    # API Documentation
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    # ====== End Added Endpoints ======
+    
     # Auth
     path('auth/register/', RegistrationView.as_view(), name='user-register'),
     path('auth/login/', obtain_auth_token, name='user-login'),
@@ -62,10 +73,10 @@ urlpatterns = [
     # Alert Listing
     path('alerts/', AlertListView.as_view(), name='alerts-list'),
 
-    # Child-specific location views (not part of the ViewSet default routes)
+    # Child-specific location views
     path('children/<int:child_id>/location/current/', ChildCurrentLocationView.as_view(), name='child-current-location'),
     path('children/<int:child_id>/location/history/', ChildLocationHistoryView.as_view(), name='child-location-history'),
 
-    # Include router URLs (for ChildViewSet and SafeZoneViewSet)
+    # Include router URLs
     path('', include(router.urls)),
 ]

@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets, permissions, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import api_view  # Added for health check
 from .serializers import (
     UserRegistrationSerializer,
     ChildSerializer,
@@ -37,6 +38,17 @@ from rest_framework import serializers as drf_serializers # For inline schema se
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ====== ADDED HEALTH CHECK VIEW ======
+@api_view(['GET'])
+def health_check(request):
+    """Simple health check endpoint"""
+    return Response({
+        "status": "ok",
+        "service": "SafeKids API",
+        "version": "1.0.0"
+    })
+# ====== END HEALTH CHECK ======
 
 # --- Schema-only Serializer for LocationUpdateView Request Body ---
 class LocationUpdateRequestSchemaSerializer(drf_serializers.Serializer):
