@@ -1,54 +1,42 @@
 #!/usr/bin/env bash
-# exit on error
 set -o errexit
 
-# Navigate to the project root
+# Navigate to project root
 cd /opt/render/project/src
 
-# Debugging: Show environment info
-echo "Current directory: $(pwd)"
-echo "Python version: $(python --version)"
-echo "Pip version: $(pip --version)"
-echo "Directory contents:"
-ls -la
+# Create virtual environment
+python -m venv .venv
 
-# Create virtual environment using explicit path
-VENV_PATH="/opt/render/project/src/.venv"
-python -m venv "$VENV_PATH"
+# Use absolute paths
+VENV_PYTHON="/opt/render/project/src/.venv/bin/python"
+VENV_PIP="/opt/render/project/src/.venv/bin/pip"
 
-# Use virtual environment's pip with absolute path
-"$VENV_PATH/bin/pip" install --upgrade pip
+# Upgrade pip and setuptools
+$VENV_PIP install --upgrade pip setuptools
 
-# Find requirements.txt file
+# Find requirements.txt
 REQUIREMENTS_FILE=$(find . -name requirements.txt -print -quit)
 if [ -z "$REQUIREMENTS_FILE" ]; then
-    echo "Error: Could not find requirements.txt in the repository"
-    echo "Searching for requirements.txt:"
-    find . -name requirements.txt
+    echo "Error: requirements.txt not found"
+    find . -type f -name '*.txt'
     exit 1
 fi
+echo "Found requirements: $REQUIREMENTS_FILE"
 
-echo "Found requirements.txt at: $REQUIREMENTS_FILE"
+# Install dependencies
+$VENV_PIP install -r "$REQUIREMENTS_FILE"
 
-# Install dependencies from requirements.txt
-echo "Installing dependencies..."
-"$VENV_PATH/bin/pip" install -r "$REQUIREMENTS_FILE"
-
-# Find manage.py location
-MANAGE_PY=$(find . -name manage.py -print -quit)
-if [ -z "$MANAGE_PY" ]; then
-    echo "Error: Could not find manage.py"
-    echo "Searching for manage.py:"
-    find . -name manage.py
+# Find manage.py
+MANAGE_FILE=$(find . -name manage.py -print -quit)
+if [ -z "$MANAGE_FILE" ]; then
+    echo "Error: manage.py not found"
+    find . -type f -name '*.py'
     exit 1
 fi
+MANAGE_DIR=$(dirname "$MANAGE_FILE")
+echo "Found manage.py in: $MANAGE_DIR"
 
-# Navigate to directory containing manage.py
-MANAGE_DIR=$(dirname "$MANAGE_PY")
-echo "Changing to directory: $MANAGE_DIR"
+# Run Django commands
 cd "$MANAGE_DIR"
-
-# Run management commands
-echo "Running migrations and collectstatic..."
-"$VENV_PATH/bin/python" manage.py collectstatic --noinput
-"$VENV_PATH/bin/python" manage.py migrate
+$VENV_PYTHON manage.py collectstatic --noinput
+$VENV_PYTHON manage.py migrate

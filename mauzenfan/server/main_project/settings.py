@@ -84,7 +84,10 @@ import dj_database_url
 # ... keep other settings ...
 
 DATABASES = {
-    'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',  # Remove '_psycopg2'
+        # ... other settings ...
+    }
 }
 
 
