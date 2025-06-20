@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os # Import os for environment variables
 from pathlib import Path
 
+WEATHER_API_KEY = os.environ.get('WEATHER_API_KEY')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -180,9 +182,6 @@ if not os.environ.get('REDIS_HOST'):
 FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', None)
 
 
-# OpenWeatherMap API Key Configuration
-WEATHER_API_KEY = os.environ.get('OWM_API_KEY', None) # Developer must set OWM_API_KEY environment variable
-# Example: WEATHER_API_KEY = "your_actual_owm_api_key_here_for_testing_only" (NOT FOR PRODUCTION)
 
 # Celery Configuration Options
 # Ensure you have a Redis server running for this configuration.
