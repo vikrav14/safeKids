@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # --- OWM Client Initialization ---
-OWM_API_KEY = getattr(settings, 'WEATHER_API_KEY', None)
+OWM_API_KEY = getattr(settings, '63fbe66f4b681cac9b433aa3e86b7622', None)
 owm_client = None
 
 if OWM_API_KEY:
