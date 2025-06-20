@@ -2,13 +2,9 @@
 # exit on error
 set -o errexit
 
-# Install system dependencies
-sudo apt-get update
-sudo apt-get install -y libpq-dev build-essential python3-dev
-
-# Use Poetry for Python dependency management
+# Install dependencies using Poetry - this will handle everything
 poetry install --no-interaction --no-ansi
 
-# Now, use the explicit path to the python in the virtualenv
+# Run management commands using the virtualenv Python
 /opt/render/project/src/.venv/bin/python manage.py collectstatic --noinput
 /opt/render/project/src/.venv/bin/python manage.py migrate
