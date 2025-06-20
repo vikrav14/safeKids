@@ -79,15 +79,16 @@ WSGI_APPLICATION = 'main_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+import os
 import dj_database_url
 
-# ... keep other settings ...
-
+# Database configuration
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',  # Remove '_psycopg2'
-        # ... other settings ...
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
