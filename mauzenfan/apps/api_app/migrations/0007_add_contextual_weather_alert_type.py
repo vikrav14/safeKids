@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0006_add_is_active_to_child'),
+        ('api_app', '0006_add_is_active_to_child'),
     ]
 
     operations = [

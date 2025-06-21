@@ -5,9 +5,9 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('api', '0001_initial'),
-    ]
+dependencies = [
+    ('api_app', '0001_initial'),  # Correct app name
+]
 
     operations = [
         migrations.AddField(

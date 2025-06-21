@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0003_add_userdevice_model'),
+        ('api_app', '0003_add_userdevice_model'),
     ]
 
     operations = [
