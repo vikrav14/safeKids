@@ -9,41 +9,32 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-import os # Import os for environment variables
-from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv()  # Load environment variables from .env file
 
-WEATHER_API_KEY = os.environ.get('WEATHER_API_KEY')
+import os
+from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Define ALLOWED_HOSTS first
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+# ====== CUSTOM SETTINGS ======
+WEATHER_API_KEY = os.environ.get('OWM_API_KEY', '')
 
-# Then add Render hostname if available
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
+# ====== SECURITY SETTINGS ======
+# Use environment variables for security-sensitive settings
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-secret-key-for-dev-only')
+DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+
+# Allowed hosts configuration
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+if RENDER_EXTERNAL_HOSTNAME := os.environ.get('RENDER_EXTERNAL_HOSTNAME'):
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# CSRF settings
+CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-$w-i1pgmtf+9*)7=lul@6nv4#y6dl!^ajs+#f&0^9ck4z#&1ct') # Default only for dev
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True' # Defaults to True for dev
-
-ALLOWED_HOSTS = [
-    'safekids-y3s2.onrender.com',
-    'localhost',
-    '127.0.0.1'
-]
-CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000 http://127.0.0.1:8000').split()
-
-
-# Application definition
-
+# ====== APPLICATION DEFINITION ======
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -56,7 +47,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'api.apps.ApiConfig',
     'django_celery_beat',
-    'drf_spectacular', # Added drf-spectacular
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -88,135 +79,85 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'main_project.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-import os
-import dj_database_url
-
-# Database configuration
+# ====== DATABASE CONFIGURATION ======
+# Simple SQLite configuration for local development
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
+# ====== PASSWORD VALIDATION ======
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+# ====== INTERNATIONALIZATION ======
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
+# ====== STATIC FILES ======
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles' # For collectstatic
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'mediafiles'
 
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
+# ====== DEFAULT PRIMARY KEY ======
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# ====== ASGI & CHANNELS CONFIGURATION ======
 ASGI_APPLICATION = 'main_project.asgi.application'
 
-# CHANNEL_LAYERS configuration
-# For local development, an in-memory channel layer can be used.
-# For production, channels_redis is recommended.
+# Channel layers configuration
 REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
 REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
 
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
-        },
-        # Use InMemoryChannelLayer if REDIS_HOST is not set for simpler local dev without Redis
-        # "BACKEND": "channels.layers.InMemoryChannelLayer" if not os.environ.get('REDIS_HOST') else "channels_redis.core.RedisChannelLayer",
-        # "CONFIG": {
-        #     "hosts": [(os.environ.get('REDIS_HOST', 'localhost'), int(os.environ.get('REDIS_PORT', 6379)))],
-        # } if os.environ.get('REDIS_HOST') else {},
-    },
+        "CONFIG": {"hosts": [(REDIS_HOST, REDIS_PORT)]},
+    } if os.environ.get('REDIS_HOST') else {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
 }
-# Fallback to InMemoryChannelLayer if REDIS_HOST is not explicitly set.
-# This simplifies local development setup if Redis isn't running.
-if not os.environ.get('REDIS_HOST'):
-    CHANNEL_LAYERS['default'] = {'BACKEND': 'channels.layers.InMemoryChannelLayer'}
 
-
-# FCM Configuration (Optional - for push notifications)
-# Path to your Firebase Admin SDK service account key JSON file.
+# ====== FCM CONFIGURATION ======
 FCM_SERVICE_ACCOUNT_KEY_PATH = os.environ.get('FCM_CREDENTIAL_PATH', None)
 
-
-
-# Celery Configuration Options
-# Ensure you have a Redis server running for this configuration.
-# For local development without Redis, you might use a different broker or run tasks synchronously for testing.
+# ====== CELERY CONFIGURATION ======
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-# CELERY_TIMEZONE is already set in celery.py to use settings.TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# App Specific Custom Settings
+# ====== APPLICATION-SPECIFIC SETTINGS ======
 DEFAULT_ETA_SPEED_KMH = 30  # Default assumed speed in km/h for ETA calculations
 
-# Django REST Framework Configuration
+# ====== DRF CONFIGURATION ======
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
-        # 'rest_framework.authentication.SessionAuthentication', # Optional for browsable API
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated', # Default to authenticated
+        'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema', # For drf-spectacular
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
 
-# drf-spectacular Settings
+# ====== DRF SPECTACULAR SETTINGS ======
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'MauZenfan API',
-    'DESCRIPTION': 'API for the MauZenfan Family Safety Application. Provides endpoints for managing users, children, locations, alerts, messaging, and ETA sharing.',
+    'TITLE': 'SafeKids API',
+    'DESCRIPTION': 'Family Safety Application API',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    # 'COMPONENT_SPLIT_REQUEST': True,
-    # 'COMPONENT_NO_READ_ONLY_REQUIRED': True,
 }

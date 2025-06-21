@@ -16,7 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import HttpResponse  # Import HttpResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+
+# Add this root view function
+def root_view(request):
+    return HttpResponse(
+        "SafeKids API is running. Use /api/schema/swagger-ui/ for interactive documentation.",
+        content_type="text/plain"
+    )
 
 schema_urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -25,7 +33,9 @@ schema_urlpatterns = [
     path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
-urlpatterns = schema_urlpatterns + [ # Prepending schema URLs
+urlpatterns = [
+    path('', root_view, name='root'),  # Add this for root URL
+] + schema_urlpatterns + [  # Prepending schema URLs
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
 ]
