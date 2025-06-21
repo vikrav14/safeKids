@@ -1,4 +1,4 @@
-# mauzenfan/server/api/tasks.py
+# mauzenfan/server/api_app./tasks.py
 from celery import shared_task
 from django.utils import timezone
 from datetime import timedelta, time
@@ -97,7 +97,7 @@ def check_weather_for_children_alerts():
                     alert_time_obj = timezone.datetime.fromisoformat(hourly['time'].replace('Z','+00:00'))
                     alert_time_str = alert_time_obj.strftime('%I:%M %p')
 
-                    base_message = f"{weather_desc.capitalize()} likely near {location_name} around {alert_time_str} (Prob: {int(precip_prob*100)}%)."
+                    base_message = f"{weather_desc.capi_app.talize()} likely near {location_name} around {alert_time_str} (Prob: {int(precip_prob*100)}%)."
                     suggestion = ""
                     alert_category = "Weather Update"
 
@@ -109,7 +109,7 @@ def check_weather_for_children_alerts():
                     alert_message = f"{alert_category}: {base_message}{suggestion}"
 
                     if "thunderstorm" in weather_desc.lower(): push_title = f"Thunderstorm Alert for {child.name}"
-                    elif "rain" in weather_desc.lower() or "snow" in weather_desc.lower(): push_title = f"{weather_desc.capitalize()} Forecast for {child.name}"
+                    elif "rain" in weather_desc.lower() or "snow" in weather_desc.lower(): push_title = f"{weather_desc.capi_app.talize()} Forecast for {child.name}"
                     else: push_title = f"Weather Update for {child.name}"
 
                     if not Alert.objects.filter(

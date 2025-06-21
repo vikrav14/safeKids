@@ -16,16 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
+from drf_spectacular.views import Spectacularapi_app.View, SpectacularRedocView, SpectacularSwaggerView
 
 schema_urlpatterns = [
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api_app./schema/', Spectacularapi_app.View.as_view(), name='schema'),
     # Optional UI:
-    path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('api/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('api_app./schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api_app./schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
 
 urlpatterns = schema_urlpatterns + [ # Prepending schema URLs
     path('admin/', admin.site.urls),
-    path('api/', include('apps.api_app.urls')),
+    path('api_app./', include('apps.api_app._app.urls')),
 ]

@@ -1,12 +1,12 @@
-# mauzenfan/server/api/tests/test_utils.py
+# mauzenfan/server/api_app./tests/test_utils.py
 from django.test import TestCase
 from unittest.mock import patch, MagicMock, ANY
-from api.geolocation_utils import distance_in_meters, calculate_average_distance_to_path
-from api import weather_service # Import the module to allow patching its globals
-from api import fcm_service     # Import the module to allow patching its globals
+from api_app..geolocation_utils import distance_in_meters, calculate_average_distance_to_path
+from api_app. import weather_service # Import the module to allow patching its globals
+from api_app. import fcm_service     # Import the module to allow patching its globals
 from django.conf import settings
 from django.contrib.auth.models import User
-from api.models import UserDevice
+from api_app..models import UserDevice
 # To prevent "Apps aren't loaded yet" error when fcm_service.py (which imports models) is imported at test collection time
 # We might need to ensure Django is fully set up if fcm_service.py tries to access models at import time.
 # However, fcm_service.UserDevice import is inside a function, so it should be fine.
@@ -40,13 +40,13 @@ class GeolocationUtilsTests(TestCase):
 
 class WeatherServiceTests(TestCase):
 
-    @patch('api.weather_service.OWM') # Patch OWM class used for client creation
+    @patch('api_app..weather_service.OWM') # Patch OWM class used for client creation
     def test_get_weather_forecast_success(self, MockOWM):
         # Configure the mock OWM client and its manager
         mock_owm_instance = MagicMock()
         mock_mgr = MagicMock()
         mock_owm_instance.weather_manager.return_value = mock_mgr
-        MockOWM.return_value = mock_owm_instance # OWM(API_KEY) returns our mock
+        MockOWM.return_value = mock_owm_instance # OWM(api_app._KEY) returns our mock
 
         # Mock the one_call response
         mock_one_call_data = MagicMock()
@@ -66,15 +66,15 @@ class WeatherServiceTests(TestCase):
         mock_one_call_data.national_weather_alerts = []
         mock_mgr.one_call.return_value = mock_one_call_data
 
-        # Temporarily set WEATHER_API_KEY in settings for the service to attempt initialization
+        # Temporarily set WEATHER_api_app._KEY in settings for the service to attempt initialization
         # and use our MockOWM which returns the mock_owm_instance.
-        with self.settings(WEATHER_API_KEY='fakekey'):
+        with self.settings(WEATHER_api_app._KEY='fakekey'):
             # Re-initialize the client within the service or ensure the service can use a mocked client
             # The weather_service initializes owm_client at module level.
             # To test this properly, we'd need to reload the module with new settings,
             # or the service refactored to initialize client on demand or take it as arg.
             # For this test, we directly patch the 'owm_client' global in the weather_service module.
-            with patch('api.weather_service.owm_client', mock_owm_instance):
+            with patch('api_app..weather_service.owm_client', mock_owm_instance):
                 result = weather_service.get_weather_forecast(10.0, 10.0)
 
         self.assertIsNotNone(result)
@@ -82,28 +82,28 @@ class WeatherServiceTests(TestCase):
         self.assertEqual(result['hourly_forecast'][0]['temp'], 10.0)
         mock_mgr.one_call.assert_called_once_with(lat=10.0, lon=10.0, exclude='minutely,current')
 
-    @patch('api.weather_service.owm_client', None) # Ensure client is None
+    @patch('api_app..weather_service.owm_client', None) # Ensure client is None
     def test_get_weather_forecast_no_client(self):
         result = weather_service.get_weather_forecast(10.0, 10.0)
         self.assertIsNone(result)
 
-    @patch('api.weather_service.OWM')
-    def test_get_weather_forecast_api_error(self, MockOWM):
+    @patch('api_app..weather_service.OWM')
+    def test_get_weather_forecast_api_app._error(self, MockOWM):
         mock_owm_instance = MagicMock()
         mock_mgr = MagicMock()
-        mock_mgr.one_call.side_effect = Exception("OWM API Error")
+        mock_mgr.one_call.side_effect = Exception("OWM api_app. Error")
         mock_owm_instance.weather_manager.return_value = mock_mgr
         MockOWM.return_value = mock_owm_instance
 
-        with self.settings(WEATHER_API_KEY='fakekey_error'):
-            with patch('api.weather_service.owm_client', mock_owm_instance):
+        with self.settings(WEATHER_api_app._KEY='fakekey_error'):
+            with patch('api_app..weather_service.owm_client', mock_owm_instance):
                 result = weather_service.get_weather_forecast(10.0, 10.0)
         self.assertIsNone(result)
 
 
-@patch('api.fcm_service.firebase_admin.initialize_app') # Mock initialize_app
-@patch('api.fcm_service.firebase_admin.credentials.Certificate') # Mock Certificate
-@patch('api.fcm_service.firebase_admin.messaging') # Mock messaging module
+@patch('api_app..fcm_service.firebase_admin.initialize_app') # Mock initialize_app
+@patch('api_app..fcm_service.firebase_admin.credentials.Certificate') # Mock Certificate
+@patch('api_app..fcm_service.firebase_admin.messaging') # Mock messaging module
 class FCMServiceTests(TestCase):
 
     def setUp(self):

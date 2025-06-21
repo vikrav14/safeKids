@@ -7,14 +7,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app', '0003_add_userdevice_model'),
+        ('api_app._app', '0003_add_userdevice_model'),
     ]
 
     operations = [
         migrations.AddField(
             model_name='alert',
             name='safe_zone',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='breach_alerts', to='api.safezone'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='breach_alerts', to='api_app._app.safezone'),
         ),
         migrations.AddField(
             model_name='safezone',

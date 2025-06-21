@@ -1,8 +1,8 @@
 from django.apps import AppConfig
 
-class ApiConfig(AppConfig):
+class api_app.Config(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.api_app'
+    name = 'apps.api_app._app'
 
     def ready(self):
         # Add this line back, but corrected
