@@ -17,5 +17,5 @@ schema_urlpatterns = [
 urlpatterns = schema_urlpatterns + [
     path('admin/', admin.site.urls),
     # Fixed include path
-    path('api/', include('api_app.urls')),
+    path('api/', include('apps.api_app.urls')),
 ]
