@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os # Import os for environment variables
 from pathlib import Path
 
-WEATHER_api_app._KEY = os.environ.get('WEATHER_api_app._KEY')
+WEATHER_API_KEY = os.environ.get('WEATHER_API_KEY')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
