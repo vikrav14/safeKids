@@ -1,4 +1,5 @@
 # views.py (corrected)
+from rest_framework import serializers as drf_serializers
 from rest_framework.views import APIView  # Fixed import
 from rest_framework.response import Response
 from rest_framework import status, viewsets, permissions, generics
