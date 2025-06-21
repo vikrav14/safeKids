@@ -2,7 +2,8 @@
 
 This document outlines the WebSocket and Firebase Cloud Messaging (FCM) payloads used for real-time communication between the MauZenfan server and client applications.
 
-## 1. WebSocket API
+## 1. WebSocket API.
+
 
 ### 1.1. Endpoint URL
 
