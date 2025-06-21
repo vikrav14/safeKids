@@ -15,7 +15,7 @@ from pathlib import Path
 WEATHER_API_KEY = os.environ.get('WEATHER_API_KEY')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Define ALLOWED_HOSTS first
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
