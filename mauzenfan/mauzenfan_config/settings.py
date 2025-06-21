@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'rest_framework.authtoken',
-    'api..apps.api_app.Config',
+    'api_app.apps.ApiAppConfig',
     'django_celery_beat',
     'drf_spectacular', # Added drf-spectacular
 ]

@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 class api_app.Config(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'api.'
+    name = 'api_app.'
 
     def ready(self):
         # Add this line back, but corrected
