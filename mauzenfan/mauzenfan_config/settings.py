@@ -4,7 +4,8 @@ Django settings for main_project project.
 import os
 from pathlib import Path
 
-WEATHER_API_KEY = os.environ.get('WEATHER_API_KEY')
+# Weather API Configuration
+WEATHER_api_app_KEY = os.environ.get('WEATHER_API_KEY', '')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Adjust based on actual location
