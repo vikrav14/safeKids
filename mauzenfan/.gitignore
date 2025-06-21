@@ -14,5 +14,3 @@ __pycache__/
 .env
 db.sqlite3
 
-# VS Code / Other
-.vscode/
