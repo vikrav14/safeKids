@@ -1,8 +1,8 @@
-from rest_framework.views import api_app.View
+from rest_framework.views import api_appView
 from rest_framework.response import Response
 from rest_framework import status, viewsets, permissions, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import api_app._view  # Added for health check
+from rest_framework.decorators import api_app_view  # Added for health check
 from .serializers import (
     UserRegistrationSerializer,
     ChildSerializer,
@@ -32,7 +32,7 @@ from django.utils.dateparse import parse_datetime
 from django.db.models import Q, Max, Subquery, OuterRef, Count
 from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
-from drf_spectacular.utils import extend_schema, Openapi_app.Parameter, Openapi_app.Types # For Openapi_app. schema refinement
+from drf_spectacular.utils import extend_schema, Openapi_appParameter, Openapi_appTypes # For Openapi_app schema refinement
 from rest_framework import serializers as drf_serializers # For inline schema serializers
 
 import logging
@@ -40,12 +40,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 # ====== ADDED HEALTH CHECK VIEW ======
-@api_app._view(['GET'])
+@api_app_view(['GET'])
 def health_check(request):
     """Simple health check endpoint"""
     return Response({
         "status": "ok",
-        "service": "SafeKids api_app.",
+        "service": "SafeKids api_app",
         "version": "1.0.0"
     })
 # ====== END HEALTH CHECK ======
@@ -64,7 +64,7 @@ class SimpleMessageResponseSerializer(drf_serializers.Serializer):
     message = drf_serializers.CharField()
 
 
-class RegistrationView(api_app.View):
+class RegistrationView(api_appView):
     """
     Handles new user registration.
     Creates a User and an associated UserProfile.
@@ -76,8 +76,8 @@ class RegistrationView(api_app.View):
         summary="Register New User",
         request=UserRegistrationSerializer,
         responses={
-            201: Openapi_app.Types.OBJECT, # Example: {"message": "User registered successfully.", "user_id": 1, "username": "newuser"}
-            400: Openapi_app.Types.OBJECT  # For validation errors
+            201: Openapi_appTypes.OBJECT, # Example: {"message": "User registered successfully.", "user_id": 1, "username": "newuser"}
+            400: Openapi_appTypes.OBJECT  # For validation errors
         }
     )
     def post(self, request, *args, **kwargs):
@@ -118,7 +118,7 @@ class ChildViewSet(viewsets.ModelViewSet):
         """
         serializer.save(parent=self.request.user)
 
-class LocationUpdateView(api_app.View):
+class LocationUpdateView(api_appView):
     """
     Receives location updates from a child's device.
     This endpoint is also responsible for triggering Safe Zone breach checks
@@ -136,9 +136,9 @@ class LocationUpdateView(api_app.View):
         request=LocationUpdateRequestSchemaSerializer,
         responses={
             201: SimpleMessageResponseSerializer,
-            400: Openapi_app.Types.OBJECT,
-            403: Openapi_app.Types.OBJECT,
-            404: Openapi_app.Types.OBJECT
+            400: Openapi_appTypes.OBJECT,
+            403: Openapi_appTypes.OBJECT,
+            404: Openapi_appTypes.OBJECT
         }
     )
     def post(self, request, *args, **kwargs):
@@ -231,7 +231,7 @@ class LocationUpdateView(api_app.View):
             return Response( {"message": "Location updated successfully. Safe zone and battery checks performed."}, status=status.HTTP_201_CREATED )
         return Response(location_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ChildCurrentLocationView(generics.Retrieveapi_app.View):
+class ChildCurrentLocationView(generics.Retrieveapi_appView):
     """
     Retrieves the most recent known location for a specific child.
     Only accessible by the parent of the child.
@@ -244,7 +244,7 @@ class ChildCurrentLocationView(generics.Retrieveapi_app.View):
         if not location_point: raise Http404("No location data found for this child.")
         return location_point
 
-class ChildLocationHistoryView(generics.Listapi_app.View):
+class ChildLocationHistoryView(generics.Listapi_appView):
     """
     Retrieves the location history for a specific child.
     Only accessible by the parent of the child. Supports pagination.
@@ -257,19 +257,19 @@ class ChildLocationHistoryView(generics.Listapi_app.View):
         summary="Retrieve Child Location History",
         description="Lists location points for a specific child, optionally filtered by a time range. Results are paginated.",
         parameters=[
-            Openapi_app.Parameter(
-                name='start_timestamp', type=Openapi_app.Types.DATETIME, location=Openapi_app.Parameter.QUERY,
+            Openapi_appParameter(
+                name='start_timestamp', type=Openapi_appTypes.DATETIME, location=Openapi_appParameter.QUERY,
                 required=False, description='Filter history from this ISO 8601 timestamp. E.g., 2023-01-01T00:00:00Z'
             ),
-            Openapi_app.Parameter(
-                name='end_timestamp', type=Openapi_app.Types.DATETIME, location=Openapi_app.Parameter.QUERY,
+            Openapi_appParameter(
+                name='end_timestamp', type=Openapi_appTypes.DATETIME, location=Openapi_appParameter.QUERY,
                 required=False, description='Filter history up to this ISO 8601 timestamp. E.g., 2023-01-01T12:00:00Z'
             )
         ]
     )
     def get(self, request, *args, **kwargs):
         """
-        GET /api_app./children/{child_id}/location/history/
+        GET /api_app/children/{child_id}/location/history/
         Returns paginated location history for the specified child.
         """
         return super().get(request, *args, **kwargs)
@@ -308,7 +308,7 @@ class SafeZoneViewSet(viewsets.ModelViewSet):
     def get_queryset(self): return SafeZone.objects.filter(owner=self.request.user).order_by('-created_at')
     def perform_create(self, serializer): serializer.save(owner=self.request.user)
 
-class SOSAlertView(api_app.View):
+class SOSAlertView(api_appView):
     """
     Receives SOS alerts from a child's device.
     Device authentication is based on child_id and device_id.
@@ -320,7 +320,7 @@ class SOSAlertView(api_app.View):
     @extend_schema(
         summary="Trigger SOS Alert",
         request=SOSAlertSerializer,
-        responses={201: SimpleMessageResponseSerializer, 400: Openapi_app.Types.OBJECT, 403: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT}
+        responses={201: SimpleMessageResponseSerializer, 400: Openapi_appTypes.OBJECT, 403: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -349,7 +349,7 @@ class SOSAlertView(api_app.View):
         return Response({"message": "SOS alert successfully triggered, recorded, and notification sent."}, status=status.HTTP_201_CREATED)
 
 @extend_schema(summary="List User Alerts")
-class AlertListView(generics.Listapi_app.View):
+class AlertListView(generics.Listapi_appView):
     """
     Lists alerts for the authenticated user.
     Alerts are ordered by newest first and paginated.
@@ -358,7 +358,7 @@ class AlertListView(generics.Listapi_app.View):
     pagination_class = PageNumberPagination
     def get_queryset(self): return Alert.objects.filter(recipient=self.request.user).order_by('-timestamp')
 
-class DeviceRegistrationView(api_app.View):
+class DeviceRegistrationView(api_appView):
     """
     Handles registration of user devices for FCM push notifications.
     Associates a device token with the authenticated user.
@@ -370,7 +370,7 @@ class DeviceRegistrationView(api_app.View):
     @extend_schema(
         summary="Register Device for FCM",
         request=DeviceRegistrationSerializer,
-        responses={200: SimpleMessageResponseSerializer, 201: SimpleMessageResponseSerializer, 400: Openapi_app.Types.OBJECT}
+        responses={200: SimpleMessageResponseSerializer, 201: SimpleMessageResponseSerializer, 400: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -386,7 +386,7 @@ class DeviceRegistrationView(api_app.View):
             else: return Response({"message": "Device registration updated successfully."}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ChildCheckInView(api_app.View):
+class ChildCheckInView(api_appView):
     """
     Allows a child's device to send a "check-in" message.
     This creates a LocationPoint and an Alert for the parent.
@@ -398,7 +398,7 @@ class ChildCheckInView(api_app.View):
     @extend_schema(
         summary="Child Check-In",
         request=CheckInSerializer,
-        responses={201: SimpleMessageResponseSerializer, 400: Openapi_app.Types.OBJECT, 403: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT}
+        responses={201: SimpleMessageResponseSerializer, 400: Openapi_appTypes.OBJECT, 403: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -426,7 +426,7 @@ class ChildCheckInView(api_app.View):
         logger.info(f"Processed check-in for child {child.name}, parent {parent_user.username}")
         return Response({"message": "Check-in processed successfully."}, status=status.HTTP_201_CREATED)
 
-class SendMessageView(api_app.View):
+class SendMessageView(api_appView):
     """
     Allows an authenticated user (parent or another user) to send a direct message
     to another user (parent or a child's proxy_user).
@@ -437,7 +437,7 @@ class SendMessageView(api_app.View):
     @extend_schema(
         summary="Send Direct Message",
         request=MessageSerializer, # This implicitly uses write-only fields for request, read-only for response
-        responses={201: MessageSerializer, 400: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT}
+        responses={201: MessageSerializer, 400: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -473,7 +473,7 @@ class SendMessageView(api_app.View):
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 20; page_size_query_param = 'page_size'; max_page_size = 100
 
-class ConversationListView(api_app.View):
+class ConversationListView(api_appView):
     """
     Lists recent conversations for the authenticated user.
     A "conversation" is with another User (could be a parent or a child's proxy_user).
@@ -483,7 +483,7 @@ class ConversationListView(api_app.View):
 
     @extend_schema(
         summary="List User Conversations",
-        responses={ 200: Openapi_app.Types.OBJECT } # Actual response is a list of custom objects
+        responses={ 200: Openapi_appTypes.OBJECT } # Actual response is a list of custom objects
     )
     def get(self, request, *args, **kwargs):
         """
@@ -503,7 +503,7 @@ class ConversationListView(api_app.View):
         return Response(conversations, status=status.HTTP_200_OK)
 
 @extend_schema(summary="Get Message History with User")
-class MessageHistoryView(generics.Listapi_app.View):
+class MessageHistoryView(generics.Listapi_appView):
     """
     Retrieves the message history between the authenticated user and another specified user.
     Messages are paginated and ordered chronologically.
@@ -511,7 +511,7 @@ class MessageHistoryView(generics.Listapi_app.View):
     serializer_class = MessageSerializer; permission_classes = [IsAuthenticated]; pagination_class = StandardResultsSetPagination
     def get_queryset(self):
         """
-        GET /api_app./messages/conversation/<other_user_id>/
+        GET /api_app/messages/conversation/<other_user_id>/
         Returns paginated message history with the specified user.
         """
         other_user_id = self.kwargs.get('other_user_id'); user = self.request.user
@@ -524,7 +524,7 @@ class MessageHistoryView(generics.Listapi_app.View):
 class MarkMessagesAsReadRequestSerializer(drf_serializers.Serializer):
     other_user_id = drf_serializers.IntegerField(help_text="ID of the user whose messages were read.")
 
-class MarkMessagesAsReadView(api_app.View):
+class MarkMessagesAsReadView(api_appView):
     """
     Marks messages from another user as read by the authenticated user.
     """
@@ -534,7 +534,7 @@ class MarkMessagesAsReadView(api_app.View):
     @extend_schema(
         summary="Mark Messages as Read",
         request=MarkMessagesAsReadRequestSerializer,
-        responses={200: SimpleMessageResponseSerializer, 400: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT}
+        responses={200: SimpleMessageResponseSerializer, 400: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -563,7 +563,7 @@ class ChildSendMessageRequestSerializer(drf_serializers.Serializer): # For Child
     device_id = drf_serializers.CharField(max_length=255, help_text="Device ID for authentication.")
     content = drf_serializers.CharField(help_text="Text content of the message.")
 
-class ChildSendMessageView(api_app.View):
+class ChildSendMessageView(api_appView):
     """
     Allows a child's device to send a message to their parent.
     Device authentication is based on child_id and device_id.
@@ -575,7 +575,7 @@ class ChildSendMessageView(api_app.View):
     @extend_schema(
         summary="Child Send Message to Parent",
         request=ChildSendMessageRequestSerializer,
-        responses={201: MessageSerializer, 400: Openapi_app.Types.OBJECT, 403: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT, 500: Openapi_app.Types.OBJECT}
+        responses={201: MessageSerializer, 400: Openapi_appTypes.OBJECT, 403: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT, 500: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -607,7 +607,7 @@ class ChildSendMessageView(api_app.View):
         return Response(broadcast_serializer.data, status=status.HTTP_201_CREATED)
 
 @extend_schema(summary="Start ETA Share")
-class StartEtaShareView(api_app.View):
+class StartEtaShareView(api_appView):
     """
     Initiates a new "On My Way" ETA share.
     Allows an authenticated user (sharer) to start sharing their ETA to a specified
@@ -619,7 +619,7 @@ class StartEtaShareView(api_app.View):
 
     @extend_schema( # More specific for post if needed, otherwise class-level serializer_class is used
         request=StartEtaShareSerializer,
-        responses={201: ActiveEtaShareSerializer, 400: Openapi_app.Types.OBJECT}
+        responses={201: ActiveEtaShareSerializer, 400: Openapi_appTypes.OBJECT}
     )
     def post(self, request, *args, **kwargs):
         """
@@ -656,7 +656,7 @@ class StartEtaShareView(api_app.View):
         return Response(eta_share_data_for_client, status=status.HTTP_201_CREATED)
 
 @extend_schema(summary="Update ETA Location")
-class UpdateEtaLocationView(api_app.View):
+class UpdateEtaLocationView(api_appView):
     """
     Allows the sharer of an active ETA to update their current location.
     This recalculates the ETA and broadcasts the update to users it's shared with.
@@ -666,7 +666,7 @@ class UpdateEtaLocationView(api_app.View):
 
     @extend_schema( # More specific for post
         request=UpdateEtaLocationSerializer,
-        responses={200: ActiveEtaShareSerializer, 400: Openapi_app.Types.OBJECT, 403: Openapi_app.Types.OBJECT, 404: Openapi_app.Types.OBJECT}
+        responses={200: ActiveEtaShareSerializer, 400: Openapi_appTypes.OBJECT, 403: Openapi_appTypes.OBJECT, 404: Openapi_appTypes.OBJECT}
     )
     def post(self, request, share_id, *args, **kwargs):
         """
@@ -701,7 +701,7 @@ class UpdateEtaLocationView(api_app.View):
         return Response(eta_share_data_for_client, status=status.HTTP_200_OK)
 
 @extend_schema(summary="List Active ETA Shares")
-class ListActiveEtaSharesView(generics.Listapi_app.View):
+class ListActiveEtaSharesView(generics.Listapi_appView):
     """
     Lists active ETA shares relevant to the authenticated user.
     This includes shares started by the user and shares shared with the user.
@@ -721,14 +721,14 @@ class ListActiveEtaSharesView(generics.Listapi_app.View):
         ).distinct().order_by('-updated_at')
 
 @extend_schema(summary="Cancel ETA Share")
-class CancelEtaShareView(api_app.View):
+class CancelEtaShareView(api_appView):
     """
     Allows the sharer to cancel an active ETA share.
     """
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ActiveEtaShareSerializer # For response documentation
 
-    @extend_schema(responses={200: SimpleMessageResponseSerializer, 403:Openapi_app.Types.OBJECT, 404:Openapi_app.Types.OBJECT})
+    @extend_schema(responses={200: SimpleMessageResponseSerializer, 403:Openapi_appTypes.OBJECT, 404:Openapi_appTypes.OBJECT})
     def post(self, request, share_id, *args, **kwargs):
         """
         Cancel an active ETA share. Only the original sharer can perform this action.
@@ -763,14 +763,14 @@ class CancelEtaShareView(api_app.View):
         return Response({"message": "ETA share cancelled successfully."}, status=status.HTTP_200_OK)
 
 @extend_schema(summary="Mark ETA Share as Arrived")
-class ArrivedEtaShareView(api_app.View):
+class ArrivedEtaShareView(api_appView):
     """
     Allows the sharer to mark an active ETA share as 'ARRIVED'.
     """
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ActiveEtaShareSerializer # For response documentation
 
-    @extend_schema(responses={200: SimpleMessageResponseSerializer, 403:Openapi_app.Types.OBJECT, 404:Openapi_app.Types.OBJECT})
+    @extend_schema(responses={200: SimpleMessageResponseSerializer, 403:Openapi_appTypes.OBJECT, 404:Openapi_appTypes.OBJECT})
     def post(self, request, share_id, *args, **kwargs):
         """
         Mark an active ETA share as arrived. Only the original sharer can perform this action.

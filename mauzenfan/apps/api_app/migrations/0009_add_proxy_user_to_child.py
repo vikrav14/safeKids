@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app._app', '0008_add_checkin_alert_type'),
+        ('api_app_app', '0008_add_checkin_alert_type'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

@@ -7,10 +7,10 @@ import os  # For environment variables if needed
 logger = logging.getLogger(__name__)
 
 # --- OWM Client Initialization ---
-OWM_api_app._KEY = getattr(settings, 'WEATHER_api_app._KEY', None)
+OWM_api_app_KEY = getattr(settings, 'WEATHER_api_app_KEY', None)
 owm_client = None
 
-if OWM_api_app._KEY:
+if OWM_api_app_KEY:
     try:
         # Configure timeout settings
         config_dict = {
@@ -18,18 +18,18 @@ if OWM_api_app._KEY:
                 'timeout': 10  # 10-second timeout for all requests
             }
         }
-        owm_client = OWM(OWM_api_app._KEY, config=config_dict)
+        owm_client = OWM(OWM_api_app_KEY, config=config_dict)
         logger.info("OpenWeatherMap client initialized successfully with timeout settings.")
     except Exception as e:
         logger.error(f"Error initializing OpenWeatherMap client: {e}", exc_info=True)
         owm_client = None
 else:
-    logger.warning("WEATHER_api_app._KEY not found in settings. Weather service will not function.")
+    logger.warning("WEATHER_api_app_KEY not found in settings. Weather service will not function.")
 
 def get_weather_forecast(lat, lon):
     """
-    Fetches weather forecast using OWM's One Call api_app. for a given lat/lon.
-    Includes coordinate validation, api_app. timeout, and caching.
+    Fetches weather forecast using OWM's One Call api_app for a given lat/lon.
+    Includes coordinate validation, api_app timeout, and caching.
     """
     # Validate coordinates
     try:

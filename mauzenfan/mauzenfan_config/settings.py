@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'rest_framework.authtoken',
-    'api_app.apps.ApiAppConfig',
+    'api_appapps.ApiAppConfig',
     'django_celery_beat',
     'drf_spectacular', # Added drf-spectacular
 ]
@@ -201,20 +201,20 @@ DEFAULT_ETA_SPEED_KMH = 30  # Default assumed speed in km/h for ETA calculations
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.TokenAuthentication',
-        # 'rest_framework.authentication.SessionAuthentication', # Optional for browsable api_app.
+        # 'rest_framework.authentication.SessionAuthentication', # Optional for browsable api_app
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated', # Default to authenticated
     ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi_app..AutoSchema', # For drf-spectacular
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi_app.AutoSchema', # For drf-spectacular
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
 
 # drf-spectacular Settings
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'MauZenfan api_app.',
-    'DESCRIPTION': 'api_app. for the MauZenfan Family Safety Application. Provides endpoints for managing users, children, locations, alerts, messaging, and ETA sharing.',
+    'TITLE': 'MauZenfan api_app',
+    'DESCRIPTION': 'api_app for the MauZenfan Family Safety Application. Provides endpoints for managing users, children, locations, alerts, messaging, and ETA sharing.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # 'COMPONENT_SPLIT_REQUEST': True,

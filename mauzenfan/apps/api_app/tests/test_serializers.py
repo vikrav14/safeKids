@@ -1,14 +1,14 @@
-# mauzenfan/server/api_app./tests/test_serializers.py
+# mauzenfan/server/api_app/tests/test_serializers.py
 from django.test import TestCase
 from django.contrib.auth.models import User
 from rest_framework import serializers # For ValidationError
 from unittest.mock import MagicMock # For mocking request context
 
-from api_app..models import (
+from api_app.models import (
     Child, UserProfile, Message, SafeZone, Alert,
     LearnedRoutine, ActiveEtaShare, UserDevice, LocationPoint
 )
-from api_app..serializers import (
+from api_app.serializers import (
     UserRegistrationSerializer, MessageUserSerializer, MessageSerializer,
     ChildSerializer, LocationPointSerializer, SafeZoneSerializer, AlertSerializer,
     CheckInSerializer, DeviceRegistrationSerializer, ActiveEtaShareSerializer,
