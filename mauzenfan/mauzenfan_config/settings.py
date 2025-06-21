@@ -36,7 +36,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'rest_framework.authtoken',
-    'apps.api_app.apps.apiAppConfig',  # Fixed app reference
+    'apps.api_app.apps.ApiAppConfig',  # Fixed app reference
     'django_celery_beat',
     'drf_spectacular',
 ]
