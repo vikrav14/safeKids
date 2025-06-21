@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('last_calculated_at', models.DateTimeField(auto_now_add=True)),
                 ('confidence_score', models.FloatField(default=0.0, help_text='Confidence in this learned routine (0.0 to 1.0)')),
                 ('is_active', models.BooleanField(default=True, help_text='Is this routine currently considered valid?')),
-                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='learned_routines', to='api.child')),
+                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='learned_routines', to='api_app.child')),
             ],
             options={
                 'ordering': ['child', '-confidence_score', '-last_calculated_at'],
