@@ -4,7 +4,7 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack # For authentication
 import api.routing # Import your app's routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'main_project.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mauzenfan_config.settings')
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(), # Handles traditional HTTP requests

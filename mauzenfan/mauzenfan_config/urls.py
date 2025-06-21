@@ -27,5 +27,5 @@ schema_urlpatterns = [
 
 urlpatterns = schema_urlpatterns + [ # Prepending schema URLs
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),
+    path('api/', include('apps.api_app.urls')),
 ]

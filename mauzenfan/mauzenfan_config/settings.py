@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'channels',
     'rest_framework',
     'rest_framework.authtoken',
-    'api.apps.ApiConfig',
+    'apps.api_app.apps.ApiConfig',
     'django_celery_beat',
     'drf_spectacular', # Added drf-spectacular
 ]
@@ -69,7 +69,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'main_project.urls'
+ROOT_URLCONF = 'mauzenfan_config.urls'
 
 TEMPLATES = [
     {
@@ -86,7 +86,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'main_project.wsgi.application'
+WSGI_APPLICATION = 'mauzenfan_config.wsgi.application'
 
 
 # Database
@@ -150,7 +150,7 @@ MEDIA_ROOT = BASE_DIR / 'mediafiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-ASGI_APPLICATION = 'main_project.asgi.application'
+ASGI_APPLICATION = 'mauzenfan_config.asgi.application'
 
 # CHANNEL_LAYERS configuration
 # For local development, an in-memory channel layer can be used.

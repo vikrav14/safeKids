@@ -1,0 +1,18 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+.env
+.env.example
+venv/
+
+# Node.js
+node_modules/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.log
+.env
+db.sqlite3
+
+# VS Code / Other
+.vscode/
