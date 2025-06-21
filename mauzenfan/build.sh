@@ -12,7 +12,7 @@ pip install -r mauzenfan/server/requirements.txt
 echo "Checking database configuration:"
 python -c "import os; print('DATABASE_URL:', os.environ.get('DATABASE_URL'))"
 
-cd mauzenfan/server
+cd mauzenfan/
 python manage.py collectstatic --noinput
 
 # Only run migrations if DATABASE_URL is set
