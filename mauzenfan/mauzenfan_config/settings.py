@@ -24,8 +24,11 @@ ALLOWED_HOSTS.append('safekids-y3s2.onrender.com')
 
 # Security settings
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-$w-i1pgmtf+9*)7=lul@6nv4#y6dl!^ajs+#f&0^9ck4z#&1ct')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'  # Default to False in production
 CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000 http://127.0.0.1:8000').split()
+
+# Add frontend URL to CSRF trusted origins
+CSRF_TRUSTED_ORIGINS.append('https://safekids-y3s2.onrender.com')
 
 # Application definition
 INSTALLED_APPS = [
@@ -41,10 +44,12 @@ INSTALLED_APPS = [
     'apps.api_app',  # Fixed app reference
     'django_celery_beat',
     'drf_spectacular',
+    'whitenoise.runserver_nostatic',  # Add WhiteNoise
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -57,10 +62,14 @@ ROOT_URLCONF = 'mauzenfan_config.urls'
 WSGI_APPLICATION = 'mauzenfan_config.wsgi.application'
 ASGI_APPLICATION = 'mauzenfan_config.asgi.application'
 
+# Frontend Configuration
+FRONTEND_DIR = BASE_DIR / 'frontend'  # Path to your frontend directory
+FRONTEND_BUILD_DIR = FRONTEND_DIR / 'build'  # Path to your frontend build
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [FRONTEND_BUILD_DIR],  # Point to your frontend build
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -71,6 +80,23 @@ TEMPLATES = [
         },
     },
 ]
+
+# Static files configuration
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Where Django will look for additional static files
+STATICFILES_DIRS = [
+    FRONTEND_BUILD_DIR / 'static',  # Frontend static files
+]
+
+# WhiteNoise configuration
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'mediafiles'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Database
 import dj_database_url
@@ -95,13 +121,6 @@ LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
-
-# Static files
-STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'mediafiles'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Channels/Redis
 REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
@@ -151,3 +170,15 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+# Production settings
+if not DEBUG:
+    # Security headers
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # HTTPS settings
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
