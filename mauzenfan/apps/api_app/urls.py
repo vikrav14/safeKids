@@ -21,7 +21,12 @@ from .views import (
     ListActiveEtaSharesView,
     CancelEtaShareView,
     ArrivedEtaShareView,
-    health_check  # Add this import
+    root_health_check,
+    health_check,
+    register,
+    login,
+    logout,
+    current_user, # Add this import
 )
 from rest_framework.authtoken.views import obtain_auth_token
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView # Add for documentation
@@ -33,6 +38,7 @@ router.register(r'safezones', SafeZoneViewSet, basename='safezone')
 urlpatterns = [
     # ====== Added Endpoints ======
     # Health Check
+    path('', root_health_check, name='root-health-check'),
     path('health/', health_check, name='health-check'),
     
     # api_app Documentation

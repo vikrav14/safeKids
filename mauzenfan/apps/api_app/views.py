@@ -3,7 +3,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets, permissions, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.authtoken.models import Token
+from django.contrib.auth import authenticate, login as django_login, logout as django_logout
+from django.contrib.auth.models import User
 from .serializers import (
     UserRegistrationSerializer,
     ChildSerializer,
@@ -17,12 +20,10 @@ from .serializers import (
     MessageUserSerializer,
     StartEtaShareSerializer,
     ActiveEtaShareSerializer,
-    UpdateEtaLocationSerializer
+    UpdateEtaLocationSerializer,
+    UserSerializer
 )
 from .models import Child, LocationPoint, SafeZone, Alert, UserDevice, Message, ActiveEtaShare
-from django.contrib.auth.models import User
-from .fcm_service import send_fcm_to_user
-from .geolocation_utils import distance_in_meters
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
@@ -34,12 +35,11 @@ from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-
 import logging
 
 logger = logging.getLogger(__name__)
 
-# ====== ROOT HEALTH CHECK VIEW ======
+# ====== HEALTH CHECK VIEWS ======
 @api_view(['GET'])
 def root_health_check(request):
     """Root health check endpoint"""
@@ -54,7 +54,6 @@ def root_health_check(request):
         }
     })
 
-# ====== HEALTH CHECK VIEW ======
 @api_view(['GET'])
 def health_check(request):
     """Simple health check endpoint"""
@@ -64,6 +63,93 @@ def health_check(request):
         "version": "1.0.0"
     })
 
+# ====== AUTHENTICATION VIEWS ======
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    """
+    Register a new user and return an authentication token.
+    """
+    serializer = UserRegistrationSerializer(data=request.data)
+    if serializer.is_valid():
+        try:
+            user = serializer.save()
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({
+                'token': token.key,
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            logger.error(f"Registration error: {str(e)}")
+            return Response({'error': 'Could not create user'}, 
+                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login(request):
+    """
+    Authenticate a user and return an authentication token.
+    """
+    serializer = UserLoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    username = serializer.validated_data['username']
+    password = serializer.validated_data['password']
+    
+    user = authenticate(request, username=username, password=password)
+    
+    if not user:
+        logger.warning(f"Login failed for username: {username}")
+        return Response({'error': 'Invalid credentials'}, 
+                       status=status.HTTP_401_UNAUTHORIZED)
+    
+    # Create or get token
+    token, created = Token.objects.get_or_create(user=user)
+    
+    return Response({
+        'token': token.key,
+        'user': UserSerializer(user).data
+    }, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    """
+    Log out the current user and delete their token.
+    """
+    try:
+        # Delete the token
+        request.user.auth_token.delete()
+        return Response({'message': 'Successfully logged out'}, 
+                       status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}")
+        return Response({'error': 'Could not log out'}, 
+                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    """
+    Get information about the currently authenticated user.
+    """
+    try:
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.error(f"Current user error: {str(e)}")
+        return Response({'error': 'Could not fetch user data'}, 
+                       status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# ====== SERIALIZERS FOR AUTHENTICATION ======
+class UserLoginSerializer(drf_serializers.Serializer):
+    username = drf_serializers.CharField(required=True)
+    password = drf_serializers.CharField(required=True, style={'input_type': 'password'})
+
+# ====== EXISTING APPLICATION VIEWS ======
+# (All your original views below this point)
 # --- Schema-only Serializer for LocationUpdateView Request Body ---
 class LocationUpdateRequestSchemaSerializer(drf_serializers.Serializer):
     child_id = drf_serializers.IntegerField(help_text="ID of the child providing the location update.")
