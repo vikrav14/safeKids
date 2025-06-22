@@ -9,27 +9,70 @@ logger = logging.getLogger(__name__)
 # --- OWM Client Initialization ---
 owm_client = None
 
-# First try to get from Django settings
-OWM_api_app_KEY = getattr(settings, 'WEATHER_api_app_KEY', None)
+# Detailed environment debugging
+def log_environment_debug():
+    """Log detailed environment information for troubleshooting"""
+    logger.debug("===== ENVIRONMENT DEBUG INFORMATION =====")
+    
+    # Check all possible sources
+    from_settings = getattr(settings, 'WEATHER_api_app_KEY', None)
+    from_env = os.environ.get('WEATHER_api_app_KEY')
+    from_env_alt = os.environ.get('WEATHER_API_KEY')  # Common alternative
+    
+    logger.debug(f"Key from settings: {'Present' if from_settings else 'Missing'}")
+    logger.debug(f"Key from ENV['WEATHER_api_app_KEY']: {'Present' if from_env else 'Missing'}")
+    logger.debug(f"Key from ENV['WEATHER_API_KEY']: {'Present' if from_env_alt else 'Missing'}")
+    
+    # Log all environment variables (mask sensitive values)
+    logger.debug("Environment variables:")
+    for key, value in os.environ.items():
+        if 'KEY' in key or 'SECRET' in key or 'PASSWORD' in key:
+            logger.debug(f"  {key}: {'*' * 8}{value[-3:] if value else ''}")
+        else:
+            logger.debug(f"  {key}: {value}")
+    
+    logger.debug("========================================")
 
-# If not in settings, try environment variable directly
-if not OWM_api_app_KEY:
-    OWM_api_app_KEY = os.environ.get('WEATHER_api_app_KEY')
+# Try to get API key from multiple sources
+api_key_sources = [
+    getattr(settings, 'WEATHER_api_app_KEY', None),
+    os.environ.get('WEATHER_api_app_KEY'),
+    os.environ.get('WEATHER_API_KEY'),  # Common alternative naming
+    os.environ.get('OPENWEATHER_API_KEY')  # Another common pattern
+]
+
+OWM_api_app_KEY = None
+source_name = ""
+
+for candidate in api_key_sources:
+    if candidate:
+        OWM_api_app_KEY = candidate
+        # Identify source for logging
+        if candidate == api_key_sources[0]:
+            source_name = "Django settings"
+        elif candidate == api_key_sources[1]:
+            source_name = "ENV['WEATHER_api_app_KEY']"
+        elif candidate == api_key_sources[2]:
+            source_name = "ENV['WEATHER_API_KEY']"
+        else:
+            source_name = "ENV['OPENWEATHER_API_KEY']"
+        break
 
 if OWM_api_app_KEY:
     try:
         config_dict = {
             'connection': {
-                'timeout': 10  # 10-second timeout for all requests
+                'timeout': 10
             }
         }
         owm_client = OWM(OWM_api_app_KEY, config=config_dict)
-        logger.info("OpenWeatherMap client initialized successfully with timeout settings.")
+        logger.info(f"OpenWeatherMap client initialized successfully (source: {source_name})")
     except Exception as e:
         logger.error(f"Error initializing OpenWeatherMap client: {e}", exc_info=True)
         owm_client = None
 else:
-    logger.warning("WEATHER_api_app_KEY not found in settings or environment. Weather service will not function.")
+    log_environment_debug()
+    logger.warning("Weather API key not found in any source. Weather service will not function.")
 
 def get_weather_forecast(lat, lon):
     """
@@ -38,16 +81,14 @@ def get_weather_forecast(lat, lon):
     """
     # Validate coordinates
     try:
-        # Convert to floats and validate
         lat = float(lat)
         lon = float(lon)
         
-        # Validate coordinate ranges
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
             logger.error(f"Coordinates out of range: lat={lat}, lon={lon}")
             return {
                 'error': 'Invalid coordinates',
-                'message': f"Latitude must be between -90 and 90, longitude between -180 and 180"
+                'message': "Latitude must be between -90 and 90, longitude between -180 and 180"
             }
     except (TypeError, ValueError):
         logger.error(f"Invalid coordinate values: lat={lat}, lon={lon}")
@@ -68,18 +109,17 @@ def get_weather_forecast(lat, lon):
         logger.error("OWM client not initialized. Cannot fetch weather.")
         return {
             'error': 'Service unavailable',
-            'message': 'Weather service is not configured properly'
+            'message': 'Weather service is not configured properly. ' +
+                       'Check server logs for initialization errors.'
         }
 
     try:
         mgr = owm_client.weather_manager()
-        
-        # Get weather data with timeout
         one_call_data = mgr.one_call(
             lat=lat,
             lon=lon,
             exclude='minutely,current',
-            timeout=10  # 10-second timeout for this specific call
+            timeout=10
         )
         
         parsed_weather = {
@@ -90,9 +130,9 @@ def get_weather_forecast(lat, lon):
         }
 
         if one_call_data:
-            # Hourly forecast (next 12 hours)
+            # Hourly forecast
             if hasattr(one_call_data, 'forecast_hourly') and one_call_data.forecast_hourly:
-                for hourly_data in one_call_data.forecast_hourly[:12]:  # Limit to 12 hours
+                for hourly_data in one_call_data.forecast_hourly[:12]:
                     parsed_weather['hourly_forecast'].append({
                         'time': hourly_data.reference_time('iso'),
                         'temp': hourly_data.temperature('celsius').get('temp'),
@@ -106,7 +146,7 @@ def get_weather_forecast(lat, lon):
                         'snow_1h': hourly_data.snow.get('1h', 0) if hourly_data.snow else 0,
                     })
 
-            # Daily forecast (next 7 days)
+            # Daily forecast
             if hasattr(one_call_data, 'forecast_daily') and one_call_data.forecast_daily:
                 for daily_data in one_call_data.forecast_daily:
                     parsed_weather['daily_forecast'].append({
@@ -139,9 +179,9 @@ def get_weather_forecast(lat, lon):
                 'message': 'Weather service returned no data for these coordinates'
             }
         
-        # Cache the result for 15 minutes if we have data
+        # Cache the result
         if parsed_weather.get('hourly_forecast') or parsed_weather.get('daily_forecast'):
-            cache_timeout = getattr(settings, 'WEATHER_CACHE_TIMEOUT', 900)  # Default 15 minutes
+            cache_timeout = getattr(settings, 'WEATHER_CACHE_TIMEOUT', 900)
             cache.set(cache_key, parsed_weather, cache_timeout)
             logger.info(f"Cached weather data for {lat},{lon} for {cache_timeout} seconds")
         
@@ -151,5 +191,5 @@ def get_weather_forecast(lat, lon):
         logger.error(f"Error fetching weather for lat={lat}, lon={lon}: {e}", exc_info=True)
         return {
             'error': 'Service error',
-            'message': 'Failed to fetch weather data'
+            'message': f'Failed to fetch weather data: {str(e)}'
         }
