@@ -24,7 +24,7 @@ from .views import (
     health_check  # Add this import
 )
 from rest_framework.authtoken.views import obtain_auth_token
-from drf_spectacular.views import Spectacularapi_appView, SpectacularSwaggerView  # Add for documentation
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView # Add for documentation
 
 router = DefaultRouter()
 router.register(r'children', ChildViewSet, basename='child')
@@ -36,7 +36,7 @@ urlpatterns = [
     path('health/', health_check, name='health-check'),
     
     # api_app Documentation
-    path('schema/', Spectacularapi_appView.as_view(), name='schema'),
+    path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     # ====== End Added Endpoints ======
     
