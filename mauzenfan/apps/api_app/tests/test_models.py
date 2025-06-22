@@ -1,7 +1,7 @@
-# mauzenfan/server/api_app/tests/test_models.py
+# mauzenfan/server/api/tests/test_models.py
 from django.test import TestCase
 from django.contrib.auth.models import User
-from api_app.models import (
+from api.models import (
     Child, SafeZone, Alert, Message, LearnedRoutine, ActiveEtaShare, UserDevice, UserProfile
 )
 import logging

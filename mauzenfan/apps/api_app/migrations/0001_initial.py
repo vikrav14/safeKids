@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
                 ('timestamp', models.DateTimeField(auto_now_add=True)),
                 ('is_read', models.BooleanField(default=False)),
                 ('recipient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='alerts', to=settings.AUTH_USER_MODEL)),
-                ('child', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='alerts', to='api_app_app.child')),
+                ('child', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='alerts', to='api.child')),
             ],
             options={
                 'ordering': ['-timestamp'],
@@ -49,7 +49,7 @@ class Migration(migrations.Migration):
                 ('longitude', models.DecimalField(decimal_places=6, max_digits=9)),
                 ('timestamp', models.DateTimeField()),
                 ('accuracy', models.FloatField(blank=True, null=True)),
-                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='location_points', to='api_app_app.child')),
+                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='location_points', to='api.child')),
             ],
             options={
                 'ordering': ['-timestamp'],

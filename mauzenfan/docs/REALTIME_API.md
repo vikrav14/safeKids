@@ -1,9 +1,8 @@
-# MauZenfan Real-time api_app Documentation
+# MauZenfan Real-time API Documentation
 
 This document outlines the WebSocket and Firebase Cloud Messaging (FCM) payloads used for real-time communication between the MauZenfan server and client applications.
 
-## 1. WebSocket api_app.
-
+## 1. WebSocket API
 
 ### 1.1. Endpoint URL
 
@@ -16,7 +15,7 @@ ws://<your_server_address>/ws/notifications/
 
 ### 1.2. Authentication & Connection
 
-- Authentication is handled via the standard Django session/token authentication used for the rest of the api_app. The WebSocket connection request should include necessary authentication headers (e.g., cookies or a token in the query string if using `channels.auth.AuthMiddlewareStack` with custom token handling).
+- Authentication is handled via the standard Django session/token authentication used for the rest of the API. The WebSocket connection request should include necessary authentication headers (e.g., cookies or a token in the query string if using `channels.auth.AuthMiddlewareStack` with custom token handling).
 - Upon successful connection, the server automatically subscribes the client to a user-specific notification group (e.g., `user_{user_id}_notifications`). Clients do not need to send explicit subscribe messages.
 
 ### 1.3. General Message Format (Server-to-Client)

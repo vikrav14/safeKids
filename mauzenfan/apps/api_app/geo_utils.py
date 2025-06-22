@@ -1,4 +1,4 @@
-# mauzenfan/server/api_app/geo_utils.py
+# mauzenfan/server/api/geo_utils.py
 import math
 
 def calculate_haversine_distance(lat1, lon1, lat2, lon2):

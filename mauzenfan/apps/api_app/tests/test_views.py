@@ -1,7 +1,7 @@
-# mauzenfan/server/api_app/tests/test_views.py
-from rest_framework.test import api_appTestCase
+# mauzenfan/server/api/tests/test_views.py
+from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
-from api_app.models import Child, SafeZone, UserProfile, LocationPoint, Alert, ActiveEtaShare, Message, UserDevice # Added UserDevice
+from api.models import Child, SafeZone, UserProfile, LocationPoint, Alert, ActiveEtaShare, Message, UserDevice # Added UserDevice
 from django.urls import reverse
 from rest_framework import status
 from unittest.mock import patch, MagicMock
@@ -13,7 +13,7 @@ import logging
 # Optional: Disable logging for cleaner test output
 # logging.disable(logging.CRITICAL)
 
-class ChildViewSetTests(api_appTestCase):
+class ChildViewSetTests(APITestCase):
     def setUp(self):
         self.parent1 = User.objects.create_user(username='parent1', password='password123', email='p1@example.com')
         self.parent2 = User.objects.create_user(username='parent2', password='password123', email='p2@example.com')
@@ -81,7 +81,7 @@ class ChildViewSetTests(api_appTestCase):
         self.assertFalse(Child.objects.filter(pk=self.child1_p1.pk).exists())
 
 
-class SafeZoneViewSetTests(api_appTestCase):
+class SafeZoneViewSetTests(APITestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='user1_sz', password='password123')
         self.user2 = User.objects.create_user(username='user2_sz', password='password123')
@@ -140,14 +140,14 @@ class SafeZoneViewSetTests(api_appTestCase):
         self.assertFalse(SafeZone.objects.filter(pk=self.zone1_u1.pk).exists())
 
 
-class LocationUpdateViewTests(api_appTestCase):
+class LocationUpdateViewTests(APITestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username='testparent_loc', password='password')
         self.child = Child.objects.create(parent=self.parent, name='TrackedChild', device_id='device123_loc', is_active=True)
         self.url = reverse('location-update')
 
-    @patch('api_app.views.get_channel_layer')
-    @patch('api_app.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
     def test_location_update_success(self, mock_send_fcm, mock_get_channel_layer):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -182,7 +182,7 @@ class LocationUpdateViewTests(api_appTestCase):
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
-class LocationUpdateViewAlertGenerationTests(api_appTestCase):
+class LocationUpdateViewAlertGenerationTests(APITestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username='alert_test_parent', password='password')
         self.child = Child.objects.create(parent=self.parent, name='AlertChild', device_id='dev_alert', is_active=True)
@@ -192,8 +192,8 @@ class LocationUpdateViewAlertGenerationTests(api_appTestCase):
         )
         self.update_url = reverse('location-update')
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_location_update_triggers_low_battery_alert(self, mock_get_channel_layer, mock_send_fcm):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -220,8 +220,8 @@ class LocationUpdateViewAlertGenerationTests(api_appTestCase):
                 break
         self.assertTrue(low_battery_ws_call_found, "low_battery_alert WebSocket message not found")
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_safe_zone_exit_alert_and_cooldown(self, mock_get_channel_layer, mock_send_fcm):
         mock_ch_layer = MagicMock()
         mock_get_channel_layer.return_value = mock_ch_layer
@@ -268,14 +268,14 @@ class LocationUpdateViewAlertGenerationTests(api_appTestCase):
         mock_send_fcm.assert_not_called()
 
 
-class ChildCheckInViewTests(api_appTestCase):
+class ChildCheckInViewTests(APITestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username='parent_checkin', password='password')
         self.child = Child.objects.create(parent=self.parent, name='CheckerChild', device_id='dev_checkin', is_active=True)
         self.url = reverse('child-check-in')
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_child_check_in_success(self, mock_get_channel_layer, mock_send_fcm):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -295,13 +295,13 @@ class ChildCheckInViewTests(api_appTestCase):
         self.assertEqual(kwargs['message']['type'], 'child_check_in')
 
 
-class SOSAlertViewTests(api_appTestCase):
+class SOSAlertViewTests(APITestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username='parent_sos', password='password')
         self.child = Child.objects.create(parent=self.parent, name='SOSChild', device_id='dev_sos', is_active=True)
         self.url = reverse('alert-sos')
 
-    @patch('api_app.views.send_fcm_to_user')
+    @patch('api.views.send_fcm_to_user')
     def test_sos_alert_success(self, mock_send_fcm):
         data = {
             "child_id": self.child.id, "device_id": "dev_sos",
@@ -313,7 +313,7 @@ class SOSAlertViewTests(api_appTestCase):
         mock_send_fcm.assert_called_once()
 
 
-class LocationRetrievalViewTests(api_appTestCase):
+class LocationRetrievalViewTests(APITestCase):
     def setUp(self):
         self.parent = User.objects.create_user(username='parent_loc_retrieve', password='password')
         self.child = Child.objects.create(parent=self.parent, name='RetrievedChild', device_id='dev_retrieve', is_active=True)
@@ -352,15 +352,15 @@ class LocationRetrievalViewTests(api_appTestCase):
         self.assertEqual(len(results), 2)
 
 
-class EtaSharingViewSetTests(api_appTestCase):
+class EtaSharingViewSetTests(APITestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='eta_sharer', password='password', email='eta1@example.com')
         self.user2 = User.objects.create_user(username='eta_viewer1', password='password', email='eta2@example.com')
         self.user3 = User.objects.create_user(username='eta_viewer2', password='password', email='eta3@example.com')
         self.start_url = reverse('eta-start')
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_start_eta_share_success(self, mock_get_channel_layer, mock_send_fcm):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -388,7 +388,7 @@ class EtaSharingViewSetTests(api_appTestCase):
         response = self.client.post(self.start_url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.get_channel_layer')
     def test_update_eta_location_success(self, mock_get_channel_layer):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -428,7 +428,7 @@ class EtaSharingViewSetTests(api_appTestCase):
         results = response.data.get('results', response.data)
         self.assertEqual(len(results), 2)
 
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.get_channel_layer')
     def test_cancel_eta_share_success(self, mock_get_channel_layer):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -445,7 +445,7 @@ class EtaSharingViewSetTests(api_appTestCase):
         args, kwargs = mock_channel_layer_instance.group_send.call_args_list[0]
         self.assertEqual(kwargs['message']['type'], 'eta_cancelled')
 
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.get_channel_layer')
     def test_arrived_eta_share_success(self, mock_get_channel_layer):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -463,7 +463,7 @@ class EtaSharingViewSetTests(api_appTestCase):
         self.assertEqual(kwargs['message']['type'], 'eta_arrived')
 
 
-class MessagingViewTests(api_appTestCase):
+class MessagingViewTests(APITestCase):
     def setUp(self):
         self.user_msg1 = User.objects.create_user(username='msg_sender', password='password', first_name='Msg', last_name='Sender')
         self.user_msg2 = User.objects.create_user(username='msg_receiver', password='password', first_name='Msg', last_name='Receiver')
@@ -476,8 +476,8 @@ class MessagingViewTests(api_appTestCase):
         self.history_url_user2 = reverse('message-history', kwargs={'other_user_id': self.user_msg2.id})
         self.read_url = reverse('messages-mark-read')
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_send_message_parent_to_parent_success(self, mock_get_channel_layer, mock_send_fcm):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -498,8 +498,8 @@ class MessagingViewTests(api_appTestCase):
         self.assertEqual(kwargs['payload']['type'], 'new_message')
 
 
-    @patch('api_app.views.send_fcm_to_user')
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.send_fcm_to_user')
+    @patch('api.views.get_channel_layer')
     def test_send_message_child_to_parent_success(self, mock_get_channel_layer, mock_send_fcm):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -542,7 +542,7 @@ class MessagingViewTests(api_appTestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0]['content'], "Msg1")
 
-    @patch('api_app.views.get_channel_layer')
+    @patch('api.views.get_channel_layer')
     def test_mark_messages_as_read(self, mock_get_channel_layer):
         mock_channel_layer_instance = MagicMock()
         mock_get_channel_layer.return_value = mock_channel_layer_instance
@@ -562,7 +562,7 @@ class MessagingViewTests(api_appTestCase):
         self.assertEqual(kwargs['type'], 'messages.read.receipt')
         self.assertEqual(kwargs['payload']['reader_id'], str(self.user_msg1.id))
 
-class DeviceRegistrationViewTests(api_appTestCase):
+class DeviceRegistrationViewTests(APITestCase):
     def setUp(self):
         self.user1 = User.objects.create_user(username='dev_rego_user1', password='password')
         self.user2 = User.objects.create_user(username='dev_rego_user2', password='password')

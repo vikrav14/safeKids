@@ -9,7 +9,7 @@ MauZenfan is a family safety application designed to provide peace of mind throu
   - `common/`: (Placeholder for shared libraries or utilities if needed across different project parts)
   - `server/`: Contains the Django backend application.
     - `main_project/`: Django project configuration.
-    - `api_app/`: Django app for the core api_app logic.
+    - `api/`: Django app for the core API logic.
     - `.env.example`: Template for environment variables.
     - `requirements.txt`: Python dependencies.
     - `manage.py`: Django's command-line utility.
@@ -57,7 +57,7 @@ MauZenfan is a family safety application designed to provide peace of mind throu
     - Database credentials (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`)
     - Redis connection details (`REDIS_HOST`, `REDIS_PORT`) if you are using it.
     - `FCM_CREDENTIAL_PATH` (path to your Firebase Admin SDK JSON file)
-    - `OWM_api_app_KEY` (your OpenWeatherMap api_app key)
+    - `OWM_API_KEY` (your OpenWeatherMap API key)
 
     *Note on Redis*: If `REDIS_HOST` is not set in your `.env` file, Django Channels will use an in-memory backend for WebSockets, and Celery might default to `redis://localhost:6379` or fail if Redis is not running. For full functionality including background tasks, ensure Redis is running and `REDIS_HOST` is set.
 
@@ -81,7 +81,7 @@ You'll typically need to run the Django development server and, for background t
     ```bash
     python manage.py runserver
     ```
-    The api_app will typically be accessible at `http://localhost:8000` or `http://127.0.0.1:8000`.
+    The API will typically be accessible at `http://localhost:8000` or `http://127.0.0.1:8000`.
 
 2.  **Start the Celery Worker:**
     Open a new terminal, activate the virtual environment, navigate to `mauzenfan/server/`, and run:
@@ -96,17 +96,17 @@ You'll typically need to run the Django development server and, for background t
     celery -A main_project beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     ```
 
-## api_app Documentation
+## API Documentation
 
-Once the development server is running, api_app documentation (powered by drf-spectacular) should be available at:
-- Swagger UI: `http://localhost:8000/api_app/schema/swagger-ui/`
-- ReDoc: `http://localhost:8000/api_app/schema/redoc/`
+Once the development server is running, API documentation (powered by drf-spectacular) should be available at:
+- Swagger UI: `http://localhost:8000/api/schema/swagger-ui/`
+- ReDoc: `http://localhost:8000/api/schema/redoc/`
 
-The Openapi_app schema can be downloaded from `http://localhost:8000/api_app/schema/`.
+The OpenAPI schema can be downloaded from `http://localhost:8000/api/schema/`.
 
 ## Running Tests
 (From the `mauzenfan/server/` directory)
 ```bash
-python manage.py test api_app
+python manage.py test api
 ```
-This will run all tests within the `api_app` application.
+This will run all tests within the `api` application.

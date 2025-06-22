@@ -1,9 +1,9 @@
-# mauzenfan/server/api_app/tests/test_tasks.py
+# mauzenfan/server/api/tests/test_tasks.py
 from django.test import TestCase
 from unittest.mock import patch, MagicMock, call, ANY
 from django.contrib.auth.models import User
-from api_app.models import Child, LocationPoint, SafeZone, Alert, LearnedRoutine, UserDevice
-from api_app.tasks import (
+from api.models import Child, LocationPoint, SafeZone, Alert, LearnedRoutine, UserDevice
+from api.tasks import (
     check_weather_for_children_alerts,
     learn_child_routine_task,
     analyze_trip_task,
@@ -38,9 +38,9 @@ class CheckWeatherForChildrenAlertsTests(TestCase):
         self.child2 = Child.objects.create(parent=self.parent, name='WeatherChild2NoRecentLoc', device_id='dev_weather2', is_active=True, last_seen_at=timezone.now() - timedelta(hours=2))
         self.child3_inactive = Child.objects.create(parent=self.parent, name='WeatherChild3Inactive', device_id='dev_weather3', is_active=False, last_seen_at=timezone.now() - timedelta(minutes=30))
 
-    @patch('api_app.tasks.get_channel_layer') # Patch for potential WebSocket calls if added later
-    @patch('api_app.tasks.send_fcm_to_user')
-    @patch('api_app.tasks.get_weather_forecast')
+    @patch('api.tasks.get_channel_layer') # Patch for potential WebSocket calls if added later
+    @patch('api.tasks.send_fcm_to_user')
+    @patch('api.tasks.get_weather_forecast')
     def test_weather_alert_for_precipitation(self, mock_get_weather, mock_send_fcm, mock_get_channel_layer):
         mock_weather_data = {
             'alerts': [],
@@ -62,9 +62,9 @@ class CheckWeatherForChildrenAlertsTests(TestCase):
         self.assertIn("heavy rain", fcm_kwargs['body'].lower())
         mock_get_weather.assert_called_once_with(10.0, 10.0)
 
-    @patch('api_app.tasks.get_channel_layer')
-    @patch('api_app.tasks.send_fcm_to_user')
-    @patch('api_app.tasks.get_weather_forecast')
+    @patch('api.tasks.get_channel_layer')
+    @patch('api.tasks.send_fcm_to_user')
+    @patch('api.tasks.get_weather_forecast')
     def test_weather_alert_cooldown(self, mock_get_weather, mock_send_fcm, mock_get_channel_layer):
         mock_weather_data = {'alerts': [], 'hourly_forecast': [{'precipitation_probability': 0.8, 'detailed_status': 'rain', 'time': (timezone.now() + timedelta(hours=1)).isoformat(), 'temp': 18, 'weather_code': 500, 'rain_volume_1h': 1.0, 'snow_volume_1h':0, 'feels_like': 17, 'humidity': 85, 'wind_speed': 4.0}]*3}
         mock_get_weather.return_value = mock_weather_data
@@ -159,8 +159,8 @@ class AnalyzeTripTaskTests(TestCase):
             confidence_score=0.8, is_active=True
         )
 
-    @patch('api_app.tasks.send_fcm_to_user')
-    @patch('api_app.tasks.get_channel_layer')
+    @patch('api.tasks.send_fcm_to_user')
+    @patch('api.tasks.get_channel_layer')
     def test_analyze_trip_normal_trip_matches_routine(self, mock_get_channel_layer, mock_send_fcm):
         trip_time = timezone.make_aware(datetime(2023, 10, 2, 8, 30)) # Monday 8:30 AM
         trip_points = [
@@ -172,8 +172,8 @@ class AnalyzeTripTaskTests(TestCase):
         self.assertFalse(Alert.objects.filter(child=self.child, alert_type='UNUSUAL_ROUTE').exists())
         mock_send_fcm.assert_not_called()
 
-    @patch('api_app.tasks.send_fcm_to_user')
-    @patch('api_app.tasks.get_channel_layer')
+    @patch('api.tasks.send_fcm_to_user')
+    @patch('api.tasks.get_channel_layer')
     def test_analyze_trip_path_deviation(self, mock_get_channel_layer, mock_send_fcm):
         trip_time = timezone.make_aware(datetime(2023, 10, 2, 8, 30))
         trip_points = [
@@ -187,7 +187,7 @@ class AnalyzeTripTaskTests(TestCase):
 
 
 class ScheduleRoutineLearningTests(TestCase):
-    @patch('api_app.tasks.learn_child_routine_task.delay')
+    @patch('api.tasks.learn_child_routine_task.delay')
     def test_schedule_all_children(self, mock_learn_delay):
         parent1 = User.objects.create_user(username='sched_parent1')
         Child.objects.create(parent=parent1, name='SchedChild1', is_active=True)
