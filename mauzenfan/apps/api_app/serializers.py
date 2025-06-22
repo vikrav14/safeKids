@@ -9,7 +9,7 @@ from .models import (
 )
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    # Help text for API documentation
+    # Help text for api_app documentation
     username = serializers.CharField(help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.")
     email = serializers.EmailField(help_text="Required. A valid email address.")
     password = serializers.CharField(

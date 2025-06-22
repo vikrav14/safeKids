@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app', '0009_add_proxy_user_to_child'),
+        ('api_app_app', '0009_add_proxy_user_to_child'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

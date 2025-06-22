@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app', '0004_add_is_active_to_safezone'),
+        ('api_app_app', '0004_add_is_active_to_safezone'),
     ]
 
     operations = [
@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('last_calculated_at', models.DateTimeField(auto_now_add=True)),
                 ('confidence_score', models.FloatField(default=0.0, help_text='Confidence in this learned routine (0.0 to 1.0)')),
                 ('is_active', models.BooleanField(default=True, help_text='Is this routine currently considered valid?')),
-                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='learned_routines', to='api.child')),
+                ('child', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='learned_routines', to='api_app_app.child')),
             ],
             options={
                 'ordering': ['child', '-confidence_score', '-last_calculated_at'],

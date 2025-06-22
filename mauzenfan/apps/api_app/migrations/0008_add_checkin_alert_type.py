@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app', '0007_add_contextual_weather_alert_type'),
+        ('api_app_app', '0007_add_contextual_weather_alert_type'),
     ]
 
     operations = [
