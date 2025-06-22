@@ -1,18 +1,23 @@
 from pyowm import OWM
 import logging
 from django.conf import settings
-from django.core.cache import cache  # For caching
-import os  # For environment variables if needed
+from django.core.cache import cache
+import os
 
 logger = logging.getLogger(__name__)
 
 # --- OWM Client Initialization ---
-OWM_api_app_KEY = getattr(settings, 'WEATHER_api_app_KEY', None)
 owm_client = None
+
+# First try to get from Django settings
+OWM_api_app_KEY = getattr(settings, 'WEATHER_api_app_KEY', None)
+
+# If not in settings, try environment variable directly
+if not OWM_api_app_KEY:
+    OWM_api_app_KEY = os.environ.get('WEATHER_api_app_KEY')
 
 if OWM_api_app_KEY:
     try:
-        # Configure timeout settings
         config_dict = {
             'connection': {
                 'timeout': 10  # 10-second timeout for all requests
@@ -24,12 +29,12 @@ if OWM_api_app_KEY:
         logger.error(f"Error initializing OpenWeatherMap client: {e}", exc_info=True)
         owm_client = None
 else:
-    logger.warning("WEATHER_api_app_KEY not found in settings. Weather service will not function.")
+    logger.warning("WEATHER_api_app_KEY not found in settings or environment. Weather service will not function.")
 
 def get_weather_forecast(lat, lon):
     """
-    Fetches weather forecast using OWM's One Call api_app for a given lat/lon.
-    Includes coordinate validation, api_app timeout, and caching.
+    Fetches weather forecast using OWM's One Call API for a given lat/lon.
+    Includes coordinate validation, API timeout, and caching.
     """
     # Validate coordinates
     try:
@@ -40,10 +45,16 @@ def get_weather_forecast(lat, lon):
         # Validate coordinate ranges
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
             logger.error(f"Coordinates out of range: lat={lat}, lon={lon}")
-            return None
+            return {
+                'error': 'Invalid coordinates',
+                'message': f"Latitude must be between -90 and 90, longitude between -180 and 180"
+            }
     except (TypeError, ValueError):
         logger.error(f"Invalid coordinate values: lat={lat}, lon={lon}")
-        return None
+        return {
+            'error': 'Invalid coordinates',
+            'message': 'Latitude and longitude must be valid numbers'
+        }
     
     # Check cache first
     cache_key = f"weather_{lat}_{lon}"
@@ -55,7 +66,10 @@ def get_weather_forecast(lat, lon):
     # Check client initialization
     if not owm_client:
         logger.error("OWM client not initialized. Cannot fetch weather.")
-        return None
+        return {
+            'error': 'Service unavailable',
+            'message': 'Weather service is not configured properly'
+        }
 
     try:
         mgr = owm_client.weather_manager()
@@ -68,19 +82,24 @@ def get_weather_forecast(lat, lon):
             timeout=10  # 10-second timeout for this specific call
         )
         
-        parsed_weather = {'hourly_forecast': [], 'daily_forecast': [], 'alerts': []}
+        parsed_weather = {
+            'hourly_forecast': [], 
+            'daily_forecast': [], 
+            'alerts': [],
+            'coordinates': {'lat': lat, 'lon': lon}
+        }
 
         if one_call_data:
             # Hourly forecast (next 12 hours)
-            if one_call_data.forecast_hourly:
+            if hasattr(one_call_data, 'forecast_hourly') and one_call_data.forecast_hourly:
                 for hourly_data in one_call_data.forecast_hourly[:12]:  # Limit to 12 hours
                     parsed_weather['hourly_forecast'].append({
                         'time': hourly_data.reference_time('iso'),
                         'temp': hourly_data.temperature('celsius').get('temp'),
                         'feels_like': hourly_data.temperature('celsius').get('feels_like'),
                         'humidity': hourly_data.humidity,
-                        'wind_speed': hourly_data.wind().get('speed'),
-                        'precipitation_probability': hourly_data.precipitation_probability,
+                        'wind_speed': hourly_data.wind().get('speed') if hourly_data.wind() else 0,
+                        'precipitation_probability': getattr(hourly_data, 'precipitation_probability', None),
                         'weather_code': hourly_data.weather_code,
                         'detailed_status': hourly_data.detailed_status,
                         'rain_1h': hourly_data.rain.get('1h', 0) if hourly_data.rain else 0,
@@ -88,7 +107,7 @@ def get_weather_forecast(lat, lon):
                     })
 
             # Daily forecast (next 7 days)
-            if one_call_data.forecast_daily:
+            if hasattr(one_call_data, 'forecast_daily') and one_call_data.forecast_daily:
                 for daily_data in one_call_data.forecast_daily:
                     parsed_weather['daily_forecast'].append({
                         'date': daily_data.reference_time('iso').split('T')[0],
@@ -96,7 +115,7 @@ def get_weather_forecast(lat, lon):
                         'temp_min': daily_data.temperature('celsius').get('min'),
                         'temp_max': daily_data.temperature('celsius').get('max'),
                         'humidity': daily_data.humidity,
-                        'precipitation_probability': daily_data.precipitation_probability,
+                        'precipitation_probability': getattr(daily_data, 'precipitation_probability', None),
                         'weather_code': daily_data.weather_code,
                         'detailed_status': daily_data.detailed_status,
                         'sunrise': daily_data.sunrise_time('iso'),
@@ -104,7 +123,7 @@ def get_weather_forecast(lat, lon):
                     })
 
             # Weather alerts
-            if one_call_data.national_weather_alerts:
+            if hasattr(one_call_data, 'national_weather_alerts') and one_call_data.national_weather_alerts:
                 for alert_data in one_call_data.national_weather_alerts:
                     parsed_weather['alerts'].append({
                         'sender': alert_data.sender_name,
@@ -113,6 +132,12 @@ def get_weather_forecast(lat, lon):
                         'end': alert_data.end_time('iso'),
                         'description': alert_data.description,
                     })
+        else:
+            logger.warning(f"No weather data returned for coordinates: {lat},{lon}")
+            return {
+                'error': 'No data',
+                'message': 'Weather service returned no data for these coordinates'
+            }
         
         # Cache the result for 15 minutes if we have data
         if parsed_weather.get('hourly_forecast') or parsed_weather.get('daily_forecast'):
@@ -124,4 +149,7 @@ def get_weather_forecast(lat, lon):
 
     except Exception as e:
         logger.error(f"Error fetching weather for lat={lat}, lon={lon}: {e}", exc_info=True)
-        return None
+        return {
+            'error': 'Service error',
+            'message': 'Failed to fetch weather data'
+        }

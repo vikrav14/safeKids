@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 
 # Weather API Configuration
-WEATHER_api_app_KEY = os.environ.get('WEATHER_API_KEY', '')
+WEATHER_api_app_KEY = os.environ.get('WEATHER_api_app_KEY = os.environ.get('WEATHER_api_app_KEY', None)', '')
+WEATHER_CACHE_TIMEOUT = 1800  # 30 minutes
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Adjust based on actual location
