@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app_app', '0004_add_is_active_to_safezone'),
+        ('api_app', '0004_add_is_active_to_safezone'),
     ]
 
     operations = [

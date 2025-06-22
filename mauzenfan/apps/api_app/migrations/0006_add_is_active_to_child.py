@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api_app_app', '0005_add_learnedroutine_model'),
+        ('api_app', '0005_add_learnedroutine_model'),
     ]
 
     operations = [
