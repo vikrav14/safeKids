@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='alert',
             name='safe_zone',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='breach_alerts', to='api_app_app.safezone'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='breach_alerts', to='api_app.safezone'),
         ),
         migrations.AddField(
             model_name='safezone',
