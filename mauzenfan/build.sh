@@ -27,7 +27,7 @@ fi
 echo "Installing requirements from $REQUIREMENTS_FILE"
 pip install -r $REQUIREMENTS_FILE
 
-# Install WhiteNoise explicitly (in case it's missing from requirements)
+# Install WhiteNoise explicitly
 if ! pip list | grep whitenoise; then
     echo "WhiteNoise not found, installing explicitly..."
     pip install whitenoise==6.6.0
@@ -53,6 +53,23 @@ find . -name "*.py" -exec sed -i "s/Spectacularapi_appView/SpectacularAPIView/g"
 # Fix app configuration
 find . -name "*.py" -exec sed -i "s/'api\./'apps.api_app./g" {} +
 find . -name "*.py" -exec sed -i "s/api_appConfig/ApiAppConfig/g" {} +
+
+# FIX URLS.PY - Replace placeholder syntax with valid code
+echo "Fixing urls.py..."
+URLS_FILE="mauzenfan/mauzenfan_config/urls.py"
+if [ -f "$URLS_FILE" ]; then
+    # Replace placeholder syntax with valid view references
+    sed -i "s/path('health-check\/', ...),/path('health-check\/', health_check, name='health-check'),/" "$URLS_FILE"
+    sed -i "s/    path('api\/', ...),/    path('api\/', include('apps.api_app.urls')),/" "$URLS_FILE"
+    
+    # Add necessary imports
+    sed -i "1s/^/from django.urls import path, re_path, include\n/" "$URLS_FILE"
+    sed -i "1s/^/from django.views.generic import TemplateView\n/" "$URLS_FILE"
+    sed -i "1s/^/from apps.api_app.views import health_check, root_health_check\n/" "$URLS_FILE"
+    sed -i "1s/^/from django.contrib import admin\n/" "$URLS_FILE"
+else
+    echo "WARNING: urls.py not found at $URLS_FILE"
+fi
 
 # Debugging
 echo "Checking database configuration:"

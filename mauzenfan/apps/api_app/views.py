@@ -1,4 +1,3 @@
-# views.py (final corrected version)
 from rest_framework import serializers as drf_serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -39,6 +38,21 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ====== ROOT HEALTH CHECK VIEW ======
+@api_view(['GET'])
+def root_health_check(request):
+    """Root health check endpoint"""
+    return Response({
+        "status": "active",
+        "service": "SafeKids API",
+        "version": "1.0.0",
+        "endpoints": {
+            "api_root": "/api/",
+            "health_check": "/health-check/",
+            "admin": "/admin/"
+        }
+    })
 
 # ====== HEALTH CHECK VIEW ======
 @api_view(['GET'])
