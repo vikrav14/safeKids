@@ -6,19 +6,42 @@ echo "Current directory: $(pwd)"
 echo "Directory contents:"
 ls -la
 
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate
 
-pip install --upgrade pip
+# Upgrade pip and install wheel
+pip install --upgrade pip wheel
 
-# Install requirements
+# Install requirements from correct location
+REQUIREMENTS_FILE=""
 if [ -f "mauzenfan/requirements.txt" ]; then
-    pip install -r mauzenfan/requirements.txt
+    REQUIREMENTS_FILE="mauzenfan/requirements.txt"
 elif [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt
+    REQUIREMENTS_FILE="requirements.txt"
 else
     echo "ERROR: Could not find requirements.txt"
     exit 1
+fi
+
+echo "Installing requirements from $REQUIREMENTS_FILE"
+pip install -r $REQUIREMENTS_FILE
+
+# Install WhiteNoise explicitly (in case it's missing from requirements)
+if ! pip list | grep whitenoise; then
+    echo "WhiteNoise not found, installing explicitly..."
+    pip install whitenoise==6.6.0
+fi
+
+# Build frontend if exists
+if [ -d "frontend" ]; then
+    echo "Building frontend..."
+    cd frontend
+    npm install
+    npm run build
+    cd ..
+else
+    echo "No frontend directory found. Skipping frontend build."
 fi
 
 # Fix URL references
@@ -46,12 +69,21 @@ with open('mauzenfan/mauzenfan_config/settings.py', 'w') as f:
     f.write(content)
 "
 
+# Go to Django project directory
 cd mauzenfan/
+
+# Collect static files
+echo "Collecting static files..."
 python manage.py collectstatic --noinput
 
 # Run migrations if DATABASE_URL is set
 if [ -n "$DATABASE_URL" ]; then
+    echo "Running database migrations..."
     python manage.py migrate
 else
     echo "WARNING: DATABASE_URL not set. Skipping migrations."
 fi
+
+# Verify installation
+echo "Verifying installed packages:"
+pip list
