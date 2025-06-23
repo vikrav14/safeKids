@@ -7,7 +7,8 @@ import { useAuth } from './contexts/AuthContext';
 
 // Pages
 import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
+import Login from './pages/Login.tsx';
+import Register from './pages/register.tsx'; // Import Register page
 import ChildTracker from './pages/ChildTracker';
 import SafeZones from './pages/SafeZones';
 import Alerts from './pages/Alerts';
@@ -42,6 +43,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} /> {/* Add route for Register page */}
             
             <Route path="/" element={
               <ProtectedRoute>
