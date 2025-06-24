@@ -86,8 +86,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       setUser(response.data.user);
       return true;
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Login failed');
       return false;
     } finally {
       setLoading(false);
@@ -114,10 +114,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       setUser(response.data.user);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       setError(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
         'Registration failed'
       );
       return false;
