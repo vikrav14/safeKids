@@ -21,7 +21,6 @@ from .serializers import (
     StartEtaShareSerializer,
     ActiveEtaShareSerializer,
     UpdateEtaLocationSerializer,
-    UserSerializer
 )
 from .models import Child, LocationPoint, SafeZone, Alert, UserDevice, Message, ActiveEtaShare
 from django.shortcuts import get_object_or_404
