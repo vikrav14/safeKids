@@ -44,9 +44,9 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Initialize authentication check
   useEffect(() => {
@@ -86,7 +86,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       setUser(response.data.user);
       return true;
-    } catch (err: any) {
+    } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
       return false;
     } finally {
@@ -114,7 +114,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       
       setUser(response.data.user);
       return true;
-    } catch (err: any) {
+    } catch (err) {
       setError(
         err.response?.data?.error || 
         err.response?.data?.message || 
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async (): Promise<void> => {
     try {
       await api.post('/api/auth/logout/');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Logout error:', err);
     } finally {
       // Clear token and user state

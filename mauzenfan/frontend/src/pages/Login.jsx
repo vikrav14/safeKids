@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { 
   Container, 
   Box, 
@@ -67,7 +67,7 @@ const Login = () => {
     const { name, value } = e.target;
     setCredentials(prev => ({ ...prev, [name]: value }));
     
-    if (validationErrors[name as keyof ValidationErrors]) {
+    if (validationErrors[name]) {
       setValidationErrors(prev => ({ ...prev, [name]: undefined }));
     }
   };

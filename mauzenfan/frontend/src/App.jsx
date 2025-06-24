@@ -2,8 +2,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/AuthContext';
 
 // Pages
 import Dashboard from './pages/Dashboard';
