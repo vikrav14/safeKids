@@ -76,7 +76,7 @@ def register(request):
             token, created = Token.objects.get_or_create(user=user)
             return Response({
                 'token': token.key,
-                'user': UserSerializer(user).data
+                'user': MessageUserSerializer(user).data
             }, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")
@@ -109,7 +109,7 @@ def login(request):
     
     return Response({
         'token': token.key,
-        'user': UserSerializer(user).data
+        'user': MessageUserSerializer(user).data
     }, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
@@ -135,7 +135,7 @@ def current_user(request):
     Get information about the currently authenticated user.
     """
     try:
-        serializer = UserSerializer(request.user)
+        serializer = MessageUserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
         logger.error(f"Current user error: {str(e)}")
