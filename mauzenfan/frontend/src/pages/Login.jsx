@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext'; // Adjust path as needed
+import { useAuth } from '../context/AuthContext'; // Adjust path as needed
 
 const Login = () => {
   // Initialize credentials state properly
