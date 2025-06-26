@@ -43,6 +43,15 @@ const Login = () => {
           alignItems: 'center',
         }}
       >
+        <Box
+          component="img"
+          sx={{
+            height: 80, // Adjust as needed
+            mb: 2, // Margin bottom
+          }}
+          alt="MauZenfan Logo"
+          src="/MauZenfan.mu.jpg" // Path relative to the public folder
+        />
         <Typography component="h1" variant="h5">
           Login
         </Typography>
