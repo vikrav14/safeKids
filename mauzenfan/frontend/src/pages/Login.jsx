@@ -7,8 +7,11 @@ import {
     Button,
     Typography,
     CircularProgress,
-    Alert
+    Alert,
+    Grid,
+    Link as MuiLink
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -84,6 +87,13 @@ const Login = () => {
           >
             {loading ? <CircularProgress size={24} /> : 'Login'}
           </Button>
+          <Grid container justifyContent="flex-end">
+            <Grid item>
+              <MuiLink component={RouterLink} to="/register" variant="body2">
+                Don't have an account? Sign Up
+              </MuiLink>
+            </Grid>
+          </Grid>
         </Box>
       </Box>
     </Container>
