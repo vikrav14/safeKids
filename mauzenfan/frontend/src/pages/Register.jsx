@@ -12,7 +12,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined';
+// import PersonAddOutlinedIcon from '@mui/icons-material/PersonAddOutlined'; // No longer used
 import { styled } from '@mui/material/styles';
 
 // TypeScript interfaces
@@ -42,15 +42,15 @@ const StyledContainer = styled(Container)(({ theme }) => ({
   alignItems: 'center',
 }));
 
-const StyledAvatar = styled(Box)(({ theme }) => ({
-  margin: theme.spacing(1),
-  backgroundColor: theme.palette.secondary.main,
-  padding: theme.spacing(1.5),
-  borderRadius: '50%',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center',
-}));
+// const StyledAvatar = styled(Box)(({ theme }) => ({ // No longer used
+//   margin: theme.spacing(1),
+//   backgroundColor: theme.palette.secondary.main,
+//   padding: theme.spacing(1.5),
+//   borderRadius: '50%',
+//   display: 'flex',
+//   justifyContent: 'center',
+//   alignItems: 'center',
+// }));
 
 const StyledForm = styled('form')(({ theme }) => ({
   width: '100%',
@@ -134,9 +134,16 @@ const Register = () => {
 
   return (
     <StyledContainer maxWidth="sm">
-      <StyledAvatar>
-        <PersonAddOutlinedIcon fontSize="large" sx={{ color: 'white' }} />
-      </StyledAvatar>
+      {/* Replacing StyledAvatar with the logo */}
+      <Box
+        component="img"
+        sx={{
+          height: 80, // Adjust as needed, same as Login page for consistency
+          mb: 2, // Margin bottom
+        }}
+        alt="MauZenfan Logo"
+        src="/MauZenfan.mu.jpg" // Path relative to the public folder
+      />
       
       <Typography component="h1" variant="h5">
         Create a SafeKids Account
