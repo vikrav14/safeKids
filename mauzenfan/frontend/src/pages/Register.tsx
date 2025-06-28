@@ -79,8 +79,8 @@ const Register = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    if (validationErrors[name]) {
-      setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+    if (validationErrors[name as keyof ValidationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [name as keyof ValidationErrors]: undefined }));
     }
   };
 
@@ -157,7 +157,7 @@ const Register = () => {
         )}
         
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <TextField
               autoComplete="given-name"
               name="first_name"
@@ -171,7 +171,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <TextField
               fullWidth
               id="last_name"
@@ -185,7 +185,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <TextField
               required
               fullWidth
@@ -200,7 +200,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12}>
+          <Grid xs={12}>
             <TextField
               required
               fullWidth
@@ -215,7 +215,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <TextField
               required
               fullWidth
@@ -231,7 +231,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid xs={12} sm={6}>
             <TextField
               required
               fullWidth
@@ -264,7 +264,7 @@ const Register = () => {
         </SubmitButton>
         
         <Grid container justifyContent="flex-end">
-          <Grid item>
+          <Grid>
             <MuiLink 
               component={Link} 
               to="/login" 
