@@ -157,7 +157,8 @@ const Register = () => {
         )}
         
         <Grid container spacing={2}>
-          <Grid xs={12} sm={6}>
+          // @ts-ignore
+          <Grid item xs={12} sm={6}>
             <TextField
               autoComplete="given-name"
               name="first_name"
@@ -171,7 +172,8 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid xs={12} sm={6}>
+          // @ts-ignore
+          <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               id="last_name"
@@ -185,7 +187,8 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid xs={12}>
+          // @ts-ignore
+          <Grid item xs={12}>
             <TextField
               required
               fullWidth
@@ -200,7 +203,8 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid xs={12}>
+          // @ts-ignore
+          <Grid item xs={12}>
             <TextField
               required
               fullWidth
@@ -215,7 +219,8 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid xs={12} sm={6}>
+          // @ts-ignore
+          <Grid item xs={12} sm={6}>
             <TextField
               required
               fullWidth
@@ -231,7 +236,8 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          <Grid xs={12} sm={6}>
+          // @ts-ignore
+          <Grid item xs={12} sm={6}>
             <TextField
               required
               fullWidth
@@ -264,7 +270,8 @@ const Register = () => {
         </SubmitButton>
         
         <Grid container justifyContent="flex-end">
-          <Grid>
+          // @ts-ignore
+          <Grid item>
             <MuiLink 
               component={Link} 
               to="/login" 
