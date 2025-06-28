@@ -49,6 +49,7 @@ urlpatterns = [
     # Auth
     path('auth/register/', RegistrationView.as_view(), name='user-register'),
     path('auth/login/', obtain_auth_token, name='user-login'),
+    path('auth/me/', current_user, name='current-user'), # <<< ADDED THIS LINE
 
     # Device Registration
     path('device/register/', DeviceRegistrationView.as_view(), name='device-register'),
