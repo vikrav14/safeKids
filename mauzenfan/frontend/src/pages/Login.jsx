@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext'; // Corrected path
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
-    Container,
-    Box,
-    TextField,
-    Button,
-    Typography,
-    CircularProgress,
-    Alert,
-    Grid,
-    Link as MuiLink
+  Container,
+  Box,
+  TextField,
+  Button,
+  Typography,
+  CircularProgress,
+  Alert,
+  Grid,
+  Link as MuiLink
 } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
@@ -19,7 +20,15 @@ const Login = () => {
     password: ''
   });
   
-  const { login, loading, error } = useAuth();
+  const navigate = useNavigate();
+  const { login, loading, error, isAuthenticated } = useAuth();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({
@@ -30,7 +39,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await login(formData); // Use formData instead of credentials
+    await login(formData);
   };
 
   return (
@@ -46,11 +55,11 @@ const Login = () => {
         <Box
           component="img"
           sx={{
-            height: 80, // Adjust as needed
-            mb: 2, // Margin bottom
+            height: 80,
+            mb: 2,
           }}
           alt="MauZenfan Logo"
-          src="/MauZenfan.mu.jpg" // Path relative to the public folder
+          src="/MauZenfan.mu.jpg"
         />
         <Typography component="h1" variant="h5">
           Login
