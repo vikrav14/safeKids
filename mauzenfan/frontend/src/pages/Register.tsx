@@ -157,8 +157,7 @@ const Register = () => {
         )}
         
         <Grid container spacing={2}>
-          // @ts-ignore
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} component="div">
             <TextField
               autoComplete="given-name"
               name="first_name"
@@ -172,8 +171,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          // @ts-ignore
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} component="div">
             <TextField
               fullWidth
               id="last_name"
@@ -187,8 +185,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          // @ts-ignore
-          <Grid item xs={12}>
+          <Grid item xs={12} component="div">
             <TextField
               required
               fullWidth
@@ -203,8 +200,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          // @ts-ignore
-          <Grid item xs={12}>
+          <Grid item xs={12} component="div">
             <TextField
               required
               fullWidth
@@ -219,8 +215,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          // @ts-ignore
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} component="div">
             <TextField
               required
               fullWidth
@@ -236,8 +231,7 @@ const Register = () => {
               disabled={loading}
             />
           </Grid>
-          // @ts-ignore
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={6} component="div">
             <TextField
               required
               fullWidth
@@ -270,8 +264,7 @@ const Register = () => {
         </SubmitButton>
         
         <Grid container justifyContent="flex-end">
-          // @ts-ignore
-          <Grid item>
+          <Grid item component="div">
             <MuiLink 
               component={Link} 
               to="/login" 
