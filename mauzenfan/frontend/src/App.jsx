@@ -8,7 +8,7 @@ import { useAuth } from './context/AuthContext.tsx';
 // Pages
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx'; // Import Register page
+import Register from './pages/Register.tsx'; // Import Register page
 import ChildTracker from './pages/ChildTracker';
 import SafeZones from './pages/SafeZones';
 import Alerts from './pages/Alerts';
