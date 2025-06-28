@@ -132,6 +132,8 @@ const Register = () => {
     }
   };
 
+  const AnyGrid = Grid as any;
+
   return (
     <StyledContainer maxWidth="sm">
       {/* Replacing StyledAvatar with the logo */}
@@ -156,8 +158,8 @@ const Register = () => {
           </Alert>
         )}
         
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} component="div">
+        <AnyGrid container spacing={2}>
+          <AnyGrid item xs={12} sm={6} component="div">
             <TextField
               autoComplete="given-name"
               name="first_name"
@@ -170,8 +172,8 @@ const Register = () => {
               helperText={validationErrors.first_name}
               disabled={loading}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} component="div">
+          </AnyGrid>
+          <AnyGrid item xs={12} sm={6} component="div">
             <TextField
               fullWidth
               id="last_name"
@@ -184,8 +186,8 @@ const Register = () => {
               helperText={validationErrors.last_name}
               disabled={loading}
             />
-          </Grid>
-          <Grid item xs={12} component="div">
+          </AnyGrid>
+          <AnyGrid item xs={12} component="div">
             <TextField
               required
               fullWidth
@@ -199,8 +201,8 @@ const Register = () => {
               helperText={validationErrors.username}
               disabled={loading}
             />
-          </Grid>
-          <Grid item xs={12} component="div">
+          </AnyGrid>
+          <AnyGrid item xs={12} component="div">
             <TextField
               required
               fullWidth
@@ -214,8 +216,8 @@ const Register = () => {
               helperText={validationErrors.email}
               disabled={loading}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} component="div">
+          </AnyGrid>
+          <AnyGrid item xs={12} sm={6} component="div">
             <TextField
               required
               fullWidth
@@ -230,8 +232,8 @@ const Register = () => {
               helperText={validationErrors.password}
               disabled={loading}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} component="div">
+          </AnyGrid>
+          <AnyGrid item xs={12} sm={6} component="div">
             <TextField
               required
               fullWidth
@@ -245,8 +247,8 @@ const Register = () => {
               helperText={validationErrors.passwordConfirm}
               disabled={loading}
             />
-          </Grid>
-        </Grid>
+          </AnyGrid>
+        </AnyGrid>
         
         <SubmitButton
           type="submit"
@@ -263,8 +265,8 @@ const Register = () => {
           )}
         </SubmitButton>
         
-        <Grid container justifyContent="flex-end">
-          <Grid item component="div">
+        <AnyGrid container justifyContent="flex-end">
+          <AnyGrid item component="div">
             <MuiLink 
               component={Link} 
               to="/login" 
@@ -273,8 +275,8 @@ const Register = () => {
             >
               Already have an account? Sign in
             </MuiLink>
-          </Grid>
-        </Grid>
+          </AnyGrid>
+        </AnyGrid>
       </StyledForm>
     </StyledContainer>
   );
