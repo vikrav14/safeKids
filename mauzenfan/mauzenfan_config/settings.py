@@ -43,14 +43,16 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'apps.api_app',  # Fixed app reference
     'django_celery_beat',
+    'corsheaders',
     'drf_spectacular',
     'whitenoise.runserver_nostatic',  # Add WhiteNoise
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise
+    'whitenoise.middleware.WhiteNoiseMiddleware',      # WhiteNoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',           # <<< MOVED HERE: CORS Middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -107,6 +109,22 @@ DATABASES = {
         conn_health_checks=True,
     )
 }
+
+# =================================================================
+# ==                  CORS CONFIGURATION                         ==
+# =================================================================
+# A list of origins that are authorized to make cross-site HTTP requests.
+# Add your local frontend development URL and your production URL here.
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",      # Your local React/Vue/Svelte frontend
+    "http://127.0.0.1:3000",
+    "https://safekids-y3s2.onrender.com", # Your production frontend
+]
+
+# If True, cookies may be included in cross-domain requests.
+CORS_ALLOW_CREDENTIALS = True
+# =================================================================
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
