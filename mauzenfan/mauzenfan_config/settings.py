@@ -1,6 +1,3 @@
-"""
-Django settings for main_project project.
-"""
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -10,7 +7,11 @@ WEATHER_api_app_KEY = os.environ.get('WEATHER_api_app_KEY', None)
 WEATHER_CACHE_TIMEOUT = 1800  # 30 minutes
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Adjust based on actual location
+# Assuming manage.py is in the parent directory of the one containing this settings file's parent directory.
+# If settings.py is at /project_root/config_dir/settings.py, then BASE_DIR is /project_root/
+# Adjust if your structure is different (e.g., if manage.py is at the same level as the 'mauzenfan' directory from logs)
+BASE_DIR = Path(__file__).resolve().parent.parent 
+# Original was: BASE_DIR = Path(__file__).resolve().parent.parent.parent 
 
 # Define ALLOWED_HOSTS first
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
@@ -36,13 +37,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://safekids-y3s2.onrender.com",
+    # "https://safekids-y3s2.onrender.com", # Usually not needed for self-origin, but harmless
+                                         # More relevant if you had a different frontend domain.
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://safekids-y3s2.onrender.com",
+    "https://safekids-y3s2.onrender.com", # Trust POSTs from your own domain
 ]
 
 CORS_ALLOW_METHODS = [
@@ -66,8 +68,16 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# Cookie settings for cross-site requests (important if frontend and backend are different subdomains/ports)
 SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG # Ensure True in production (when DEBUG=False)
+CSRF_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax' # For CSRF cookie if needed cross-site
+CSRF_COOKIE_SECURE = not DEBUG # Ensure True in production
+
+# Settings for running behind a proxy like Render
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # =================================================================
 
 # Application definition
@@ -77,6 +87,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic', # WhiteNoise (should be high, but after staticfiles if it depends on it. Check docs for specific placement)
     'django.contrib.staticfiles',
     'channels',
     'rest_framework',
@@ -87,13 +98,12 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'corsheaders',
     'drf_spectacular',
-    'whitenoise.runserver_nostatic',  # Add WhiteNoise
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Should be as high as possible
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware', # After SecurityMiddleware, before most others
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -102,18 +112,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'mauzenfan_config.urls'
+ROOT_URLCONF = 'mauzenfan_config.urls' # Ensure 'mauzenfan_config' is the correct name of your project's config folder
 WSGI_APPLICATION = 'mauzenfan_config.wsgi.application'
 ASGI_APPLICATION = 'mauzenfan_config.asgi.application'
 
-# Frontend Configuration
+# Frontend Configuration (Review if Django is actually serving your frontend)
+# If frontend is deployed separately, these might not be needed or cause issues if paths are wrong.
 FRONTEND_DIR = BASE_DIR / 'frontend'  # Path to your frontend directory
 FRONTEND_BUILD_DIR = FRONTEND_DIR / 'build'  # Path to your frontend build
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [FRONTEND_BUILD_DIR],  # Point to your frontend build
+        # Consider removing FRONTEND_BUILD_DIR if Django doesn't serve index.html for a SPA
+        # or if the path is incorrect (causes warnings if dir doesn't exist).
+        'DIRS': [FRONTEND_BUILD_DIR], 
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -127,14 +140,16 @@ TEMPLATES = [
 
 # Static files configuration
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles' # For collectstatic
 
-# Where Django will look for additional static files
+# Where Django will look for additional static files during development
+# This path also causes warnings if it doesn't exist.
 STATICFILES_DIRS = [
     FRONTEND_BUILD_DIR / 'static',  # Frontend static files
 ]
 
 # WhiteNoise configuration
+# Use 'whitenoise.storage.CompressedManifestStaticFilesStorage' or 'whitenoise.storage.CompressedStaticFilesStorage'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
@@ -241,14 +256,23 @@ SPECTACULAR_SETTINGS = {
     'SCHEMA_PATH_PREFIX': r'/api/',
 }
 
-# Production settings
+# Production settings specific block
 if not DEBUG:
     # Security headers
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     
-    # HTTPS settings
+    # HTTPS settings (SECURE_SSL_REDIRECT is crucial)
     SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    # SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE are already set based on DEBUG status above
+
+    # HSTS Settings (Optional but recommended for production once everything is stable)
+    # SECURE_HSTS_SECONDS = 31536000  # 1 year
+    # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    # SECURE_HSTS_PRELOAD = True
+
+# Ensure these cookie settings are explicitly handled for production (not DEBUG)
+# These were already set using 'not DEBUG', which is good.
+# SESSION_COOKIE_SECURE = not DEBUG
+# CSRF_COOKIE_SECURE = not DEBUG
