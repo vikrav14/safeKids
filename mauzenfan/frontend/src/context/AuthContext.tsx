@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const checkAuth = async () => {
       try {
         // CORRECTED ENDPOINT: Changed to Djoser's actual user endpoint
-        const response = await api.get('/api/auth/users/me/');
+        const response = await api.get('/api/auth/me/'); // Using custom endpoint
         if (response.data) {
           setUser(response.data);
         }
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
       
       // Fetch user profile after successful login
-      const userResponse = await api.get('/api/auth/users/me/');
+      const userResponse = await api.get('/api/auth/me/'); // Using custom endpoint
       setUser(userResponse.data);
       return true;
     } catch (err: any) {

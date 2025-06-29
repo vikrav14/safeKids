@@ -132,8 +132,13 @@ class MessageUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'first_name', 'last_name', 'display_name']
 
     def get_display_name(self, obj):
-        if hasattr(obj, 'messaging_child_profile') and obj.messaging_child_profile:
-            return obj.messaging_child_profile.name
+        # Robustly access messaging_child_profile
+        if hasattr(obj, 'messaging_child_profile'):
+            profile = obj.messaging_child_profile
+            if profile and hasattr(profile, 'name') and profile.name:
+                return profile.name
+
+        # Fallback to full name or username
         full_name = obj.get_full_name()
         return full_name if full_name else obj.username
 
