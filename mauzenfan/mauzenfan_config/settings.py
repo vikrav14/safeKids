@@ -3,6 +3,7 @@ Django settings for main_project project.
 """
 import os
 from pathlib import Path
+from datetime import timedelta
 
 # Weather API Configuration
 WEATHER_api_app_KEY = os.environ.get('WEATHER_api_app_KEY', None)
@@ -25,10 +26,49 @@ ALLOWED_HOSTS.append('safekids-y3s2.onrender.com')
 # Security settings
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-$w-i1pgmtf+9*)7=lul@6nv4#y6dl!^ajs+#f&0^9ck4z#&1ct')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'  # Default to False in production
-CSRF_TRUSTED_ORIGINS = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://localhost:8000 http://127.0.0.1:8000').split()
 
-# Add frontend URL to CSRF trusted origins
-CSRF_TRUSTED_ORIGINS.append('https://safekids-y3s2.onrender.com')
+# =================================================================
+# ==                  CORS & SECURITY CONFIGURATION              ==
+# =================================================================
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://safekids-y3s2.onrender.com",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://safekids-y3s2.onrender.com",
+]
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG
+# =================================================================
 
 # Application definition
 INSTALLED_APPS = [
@@ -40,7 +80,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'rest_framework',
+    'rest_framework_simplejwt',  # JWT authentication
     'rest_framework.authtoken',
+    'djoser',  # User management
     'apps.api_app',  # Fixed app reference
     'django_celery_beat',
     'corsheaders',
@@ -50,7 +92,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',           # <<< MOVED HERE: CORS Middleware
+    'corsheaders.middleware.CorsMiddleware',           # CORS Middleware (top position)
     'whitenoise.middleware.WhiteNoiseMiddleware',      # WhiteNoise middleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -110,22 +152,6 @@ DATABASES = {
     )
 }
 
-# =================================================================
-# ==                  CORS CONFIGURATION                         ==
-# =================================================================
-# A list of origins that are authorized to make cross-site HTTP requests.
-# Add your local frontend development URL and your production URL here.
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",      # Your local React/Vue/Svelte frontend
-    "http://127.0.0.1:3000",
-    "https://safekids-y3s2.onrender.com", # Your production frontend
-]
-
-# If True, cookies may be included in cross-domain requests.
-CORS_ALLOW_CREDENTIALS = True
-# =================================================================
-
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -171,22 +197,48 @@ DEFAULT_ETA_SPEED_KMH = 30
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT authentication
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Fixed schema class
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
 
+# Simple JWT Configuration
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
+
+# Djoser Configuration
+DJOSER = {
+    'SERIALIZERS': {
+        'user_create': 'apps.api_app.serializers.UserCreateSerializer',
+        'user': 'apps.api_app.serializers.UserSerializer',
+        'current_user': 'apps.api_app.serializers.UserSerializer',
+    },
+    'PERMISSIONS': {
+        'user_list': ['rest_framework.permissions.IsAdminUser'],
+        'user': ['rest_framework.permissions.IsAuthenticated'],
+    },
+    'HIDE_USERS': False,
+}
+
 # DRF Spectacular
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'MauZenfan API',
-    'DESCRIPTION': 'API for the MauZenfan Family Safety Application',
+    'TITLE': 'SafeKids API',
+    'DESCRIPTION': 'API for the SafeKids Child Safety Application',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SCHEMA_PATH_PREFIX': r'/api/',
 }
 
 # Production settings

@@ -44,21 +44,22 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Initialize authentication check
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     
     if (token) {
-      api.defaults.headers.common['Authorization'] = `Token ${token}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`; // Changed to Bearer
     }
     
     const checkAuth = async () => {
       try {
-        const response = await api.get('/api/auth/me/');
+        // CORRECTED ENDPOINT: Changed to Djoser's actual user endpoint
+        const response = await api.get('/api/auth/users/me/');
         if (response.data) {
           setUser(response.data);
         }
@@ -78,13 +79,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setError(null);
     
     try {
-      const response = await api.post('/api/auth/login/', credentials);
+      // CORRECTED ENDPOINT: Changed to Djoser's JWT create endpoint
+      const response = await api.post('/api/auth/jwt/create/', credentials);
       
       // Store token and set headers
-      localStorage.setItem('authToken', response.data.token);
-      api.defaults.headers.common['Authorization'] = `Token ${response.data.token}`;
+      const { access } = response.data; // Extract access token
+      localStorage.setItem('authToken', access);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
       
-      setUser(response.data.user);
+      // Fetch user profile after successful login
+      const userResponse = await api.get('/api/auth/users/me/');
+      setUser(userResponse.data);
       return true;
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Login failed');
@@ -106,14 +111,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setError(null);
     
     try {
-      const response = await api.post('/api/auth/register/', userData);
+      // CORRECTED ENDPOINT: Changed to Djoser's user registration endpoint
+      await api.post('/api/auth/users/', userData);
       
-      // Store token and set headers
-      localStorage.setItem('authToken', response.data.token);
-      api.defaults.headers.common['Authorization'] = `Token ${response.data.token}`;
-      
-      setUser(response.data.user);
-      return true;
+      // Automatically login after registration
+      return await login({
+        username: userData.username,
+        password: userData.password
+      });
     } catch (err: any) {
       setError(
         err?.response?.data?.error ||
@@ -121,23 +126,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         'Registration failed'
       );
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
   // Logout function
   const logout = async (): Promise<void> => {
-    try {
-      await api.post('/api/auth/logout/');
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      // Clear token and user state
-      localStorage.removeItem('authToken');
-      delete api.defaults.headers.common['Authorization'];
-      setUser(null);
-    }
+    // No logout endpoint needed for JWT - just clear local data
+    localStorage.removeItem('authToken');
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
   };
 
   // Value to provide to consumers

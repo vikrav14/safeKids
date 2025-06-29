@@ -153,6 +153,14 @@ class MessageSerializer(serializers.ModelSerializer):
         if self.context.get('request') and self.context['request'].user.id == value:
             raise serializers.ValidationError("Cannot send messages to yourself.")
         return value
+    
+class UserCreateSerializer(BaseUserCreateSerializer):
+    class Meta(BaseUserCreateSerializer.Meta):
+        fields = ['id', 'username', 'email', 'password', 'first_name', 'last_name']
+
+class UserSerializer(BaseUserSerializer):
+    class Meta(BaseUserSerializer.Meta):
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']    
 
 class StartEtaShareSerializer(serializers.Serializer):
     destination_name = serializers.CharField(
