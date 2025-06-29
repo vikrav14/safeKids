@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from django.core.validators import MinValueValidator, MaxValueValidator
+# Djoser provides base serializers for user management that can be extended.
+from djoser.serializers import UserCreateSerializer as BaseUserCreateSerializer, UserSerializer as BaseUserSerializer
 from .models import (
     UserProfile, Child, LocationPoint, SafeZone, Alert, UserDevice, Message,
     ActiveEtaShare
@@ -54,14 +56,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user_kwargs = {
             'username': validated_data['username'],
             'email': validated_data['email'].lower(),
-            'password': validated_data['password']
         }
         if 'first_name' in validated_data:
             user_kwargs['first_name'] = validated_data['first_name']
         if 'last_name' in validated_data:
             user_kwargs['last_name'] = validated_data['last_name']
-
-        user = User.objects.create_user(**user_kwargs)
+            
+        # Use set_password to ensure the password is hashed
+        user = User(**user_kwargs)
+        user.set_password(validated_data['password'])
+        user.save()
 
         profile_kwargs = {'user': user}
         if phone_number_data is not None:
@@ -160,7 +164,7 @@ class UserCreateSerializer(BaseUserCreateSerializer):
 
 class UserSerializer(BaseUserSerializer):
     class Meta(BaseUserSerializer.Meta):
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']    
+        fields = ['id', 'username', 'email', 'first_name', 'last_name']      
 
 class StartEtaShareSerializer(serializers.Serializer):
     destination_name = serializers.CharField(
